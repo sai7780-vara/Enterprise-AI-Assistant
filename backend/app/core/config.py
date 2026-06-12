@@ -22,6 +22,15 @@ class Settings:
     # CORS: which frontend origin may call this API.
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
+    # Where local vector index & uploaded documents are stored.
+    KNOWLEDGE_BASE_DIR: str = os.getenv(
+        "KNOWLEDGE_BASE_DIR",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    )
+
+    # Gemini embedding model to use.
+    GEMINI_EMBEDDING_MODEL: str = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+
 
 # Single shared instance imported everywhere.
 settings = Settings()
