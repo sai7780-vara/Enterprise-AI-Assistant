@@ -1,151 +1,136 @@
-# Enterprise AI Knowledge Assistant — Phase 1
+# Enterprise AI Knowledge Assistant — Phase 3 (Production-Style RAG)
 
-A minimal full-stack chat app: **React frontend** talks to a **FastAPI backend**,
-which calls the **Google Gemini API** and returns the reply.
-
-This is **Phase 1 only**. No RAG, agents, MCP, Docker, Kubernetes, or Azure yet —
-those come in later phases. The goal here is a clean, beginner-friendly base.
+A production-style full-stack Retrieval-Augmented Generation (RAG) knowledge assistant. Users can upload multi-page PDF, TXT, and Markdown files to ground Gemini's responses in a custom local knowledge base.
 
 ---
 
-## Project structure
+## Key Features
 
-```
+1. **Gemini Integration:** Isolated generative model API connector utilizing `gemini-2.5-flash` for answers and `gemini-embedding-001` for semantic vector embeddings.
+2. **Page-by-Page Document Ingestion:** Custom parsing of PDF files page-by-page, chunking each page cleanly while tracking page boundaries and indexing metadata.
+3. **Local Vector Database (FAISS):** High-performance vector index using `FAISS-cpu` and cosine similarity (FlatIP with L2-normalized embeddings) to match chunks.
+4. **Structured Metadata Support:** Every chunk is indexed with metadata: `document_name`, `page_number`, `chunk_id`, and `upload_timestamp`.
+5. **Configurable Top-K Retrieval:** Dynamically adjust the number of context chunks retrieved ($K$ between 1 and 10) using a slider control in the UI.
+6. **Detailed Citations & Source Chunks:** Every response bubble displays the document source list, page numbers, and unique snippet IDs.
+7. **Similarity-based Confidence Scores:** Calculates a retrieval confidence percentage based on the cosine similarity score of the best-matching chunk.
+8. **Premium Expandable UI:** Expand citation cards to view the exact text excerpts retrieved from the source documents.
+
+---
+
+## Project Structure
+
+```text
 enterprise-ai-assistant/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── routes.py          # HTTP endpoints: /api/health, /api/chat
+│   │   │   └── routes.py             # HTTP endpoints: /chat, /documents, etc.
 │   │   ├── core/
-│   │   │   ├── config.py          # Reads env vars into one Settings object
-│   │   │   └── logger.py          # Central logging setup
+│   │   │   ├── config.py             # Reads settings (API keys, defaults, models)
+│   │   │   └── logger.py             # Central logging setup
 │   │   ├── schemas/
-│   │   │   └── chat.py            # Request/response models (Pydantic)
+│   │   │   ├── chat.py               # Pydantic models (ChatRequest, SourceCitation, etc.)
+│   │   │   └── document.py           # Document schemas (UploadResponse, etc.)
 │   │   ├── services/
-│   │   │   └── gemini_service.py  # Talks to Gemini; isolated from web layer
-│   │   └── main.py               # Builds FastAPI app, CORS, mounts routes
+│   │   │   ├── document_service.py   # Page-by-page parsing, chunking, and embedding
+│   │   │   ├── gemini_service.py     # Simple Gemini API chat connector
+│   │   │   ├── rag_service.py        # RAG orchestrator, prompt grounding, confidence scoring
+│   │   │   └── vector_store.py       # FAISS database interface, pickle indexing
+│   │   └── main.py                  # CORS setup, FastAPI app builder
 │   ├── requirements.txt
-│   ├── .env.example
 │   └── .gitignore
 │
 └── frontend/
     ├── src/
     │   ├── components/
-    │   │   └── ChatMessage.jsx    # One message bubble (presentational)
-    │   ├── api.js                # All backend calls in one place
-    │   ├── App.jsx               # Chat page: state + input + render
-    │   ├── main.jsx              # React entry point
-    │   └── styles.css
+    │   │   ├── ChatMessage.jsx       # Message bubble with expandable source citation cards
+    │   │   └── KnowledgeManager.jsx  # Knowledge base sidebar drawer & upload manager
+    │   ├── api.js                   # API connector (sendChatMessage, uploadDocument, etc.)
+    │   ├── App.jsx                  # Main interface: sidebar triggers, RAG configurations, slider
+    │   ├── main.jsx                 # Vite entrypoint
+    │   └── styles.css               # premium stylesheets & glassmorphic aesthetics
     ├── index.html
-    ├── package.json
-    ├── vite.config.js
-    ├── .env.example
-    └── .gitignore
-```
-
-### Why this layout (clean architecture)
-
-Each folder has one job, so you can change one part without breaking others:
-
-- **api/** — thin HTTP layer. Validates input, calls a service, returns output. No logic.
-- **core/** — cross-cutting setup: config and logging. Nothing else reads env vars directly.
-- **schemas/** — the exact shape of data crossing the API. FastAPI validates against these.
-- **services/** — business logic and external calls (Gemini). The web layer doesn't know *how* Gemini works, only that it can ask for a reply. In Phase 2+ you swap this file for RAG/agents without touching the endpoints.
-
----
-
-## Backend setup
-
-```bash
-cd backend
-
-# 1. Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Create your .env from the example, then add your real key
-cp .env.example .env
-#   edit .env  ->  GEMINI_API_KEY=...   (get one at https://aistudio.google.com/apikey)
-
-# 4. Run the server
-uvicorn app.main:app --reload
-```
-
-Backend now runs at **http://localhost:8000**.
-Check it: open **http://localhost:8000/api/health** → `{"status":"ok"}`.
-Interactive API docs: **http://localhost:8000/docs**.
-
----
-
-## Frontend setup
-
-```bash
-cd frontend
-
-# 1. Install dependencies
-npm install
-
-# 2. (optional) copy env example if you changed the backend port
-cp .env.example .env
-
-# 3. Run the dev server
-npm run dev
-```
-
-Frontend runs at **http://localhost:5173**. Open it and chat.
-
----
-
-## How the frontend talks to the backend
-
-1. You type a message and click **Send** (or press Enter) in `App.jsx`.
-2. `App.jsx` calls `sendChatMessage(text)` in `src/api.js`.
-3. `api.js` does a `POST` to `http://localhost:8000/api/chat` with JSON body
-   `{ "message": "your text" }`.
-4. FastAPI receives it in `routes.py`, validated against the `ChatRequest` schema.
-5. The backend returns JSON `{ "reply": "..." }`, which React renders as a bubble.
-
-CORS is enabled in `main.py` so the browser (port 5173) is allowed to call the
-API (port 8000). Without CORS the browser would block the request.
-
----
-
-## How the Gemini API is called
-
-All Gemini logic lives in `backend/app/services/gemini_service.py`:
-
-1. On startup, `GeminiService` reads `GEMINI_API_KEY` from the environment
-   (loaded from `.env` by `config.py`) and configures the `google-generativeai` client.
-2. It creates a model handle for `GEMINI_MODEL` (default `gemini-1.5-flash`).
-3. On each request, `generate_reply(message)` calls `model.generate_content(message)`
-   and returns the response text.
-4. `routes.py` wraps that call in try/except: real errors are logged server-side,
-   and the client gets a clean `502` instead of a stack trace.
-
----
-
-## Endpoints
-
-| Method | Path          | Purpose                          |
-|--------|---------------|----------------------------------|
-| GET    | `/api/health` | Liveness check                   |
-| POST   | `/api/chat`   | Send a message, get Gemini reply |
-
-`POST /api/chat` request body:
-```json
-{ "message": "Hello!" }
-```
-Response:
-```json
-{ "reply": "Hi! How can I help?" }
+    └── package.json
 ```
 
 ---
 
-## Next phases (not included yet)
+## Backend Setup
 
-Phase 2+ will layer on RAG, agents, MCP servers, A2A, Docker, Kubernetes,
-CI/CD, and Azure — each on top of this clean base.
+1. **Navigate to backend and build environment:**
+   ```bash
+   cd backend
+   python -m venv .venv
+   source .venv/bin/activate       # On Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Configure Environment variables:**
+   Create a `.env` file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+   Open `.env` and fill in your Gemini API key:
+   ```text
+   GEMINI_API_KEY=your-api-key-here
+   GEMINI_MODEL=gemini-2.5-flash
+   GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+   FRONTEND_ORIGIN=http://localhost:5173
+   ```
+
+3. **Run the server:**
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+   * Backend runs at **http://localhost:8000**.
+   * Interactive OpenAPI swagger docs: **http://localhost:8000/docs**.
+
+---
+
+## Frontend Setup
+
+1. **Navigate to frontend and run Dev server:**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   * Frontend runs at **http://localhost:5173**. Open this URL in your web browser.
+
+---
+
+## API Endpoints
+
+### Documents
+
+* **POST `/api/documents`:** Ingest a file (PDF, TXT, MD) into the database.
+* **GET `/api/documents`:** List metadata of all ingested documents.
+* **DELETE `/api/documents/{doc_id}`:** Delete a document and rebuild the FAISS index.
+
+### Chat
+
+* **POST `/api/chat`:** Chat with the AI (Direct or RAG-grounded).
+  * **Request Body:**
+    ```json
+    {
+      "message": "What is the secret code word?",
+      "use_rag": true,
+      "top_k": 3
+    }
+    ```
+  * **Response Shape:**
+    ```json
+    {
+      "reply": "The secret code word is BANANA.",
+      "sources": [
+        {
+          "document_name": "test_phase_3.txt",
+          "page_number": 1,
+          "chunk_id": "b3ad6bb7_p1_c0",
+          "text": "The secret code word is BANANA. This is snippet 1.",
+          "similarity_score": 0.7378
+        }
+      ],
+      "confidence": 73.8
+    }
+    ```
