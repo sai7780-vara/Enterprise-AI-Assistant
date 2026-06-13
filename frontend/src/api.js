@@ -7,11 +7,11 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
  * Send a user message to POST /api/chat.
  * Returns an object containing the response text and referenced source documents.
  */
-export async function sendChatMessage(message, useRag = true) {
+export async function sendChatMessage(message, useRag = true, topK = 4) {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, use_rag: useRag }),
+    body: JSON.stringify({ message, use_rag: useRag, top_k: topK }),
   });
 
   if (!res.ok) {
@@ -19,7 +19,7 @@ export async function sendChatMessage(message, useRag = true) {
     throw new Error(errData.detail || `Backend error (${res.status})`);
   }
 
-  return await res.json(); // returns { reply: str, sources: Array }
+  return await res.json(); // returns { reply: str, sources: Array, confidence: float }
 }
 
 /**

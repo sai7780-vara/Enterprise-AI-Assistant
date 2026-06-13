@@ -5,12 +5,13 @@ import ChatMessage from "./components/ChatMessage.jsx";
 import KnowledgeManager from "./components/KnowledgeManager.jsx";
 
 export default function App() {
-  // messages: array of { role: "user" | "assistant", text: string, sources?: string[] }
+  // messages: array of { role: "user" | "assistant", text: string, sources?: any[], confidence?: number }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [useRag, setUseRag] = useState(true);
+  const [topK, setTopK] = useState(4);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   async function handleSend() {
@@ -24,10 +25,15 @@ export default function App() {
     setLoading(true);
 
     try {
-      const response = await sendChatMessage(text, useRag);
+      const response = await sendChatMessage(text, useRag, topK);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: response.reply, sources: response.sources }
+        { 
+          role: "assistant", 
+          text: response.reply, 
+          sources: response.sources,
+          confidence: response.confidence
+        }
       ]);
     } catch (err) {
       setError(err.message);
@@ -59,7 +65,7 @@ export default function App() {
         <header className="app-header">
           <div className="header-titles">
             <h1>Enterprise AI Knowledge Assistant</h1>
-            <p className="subtitle">Phase 2 — Local RAG with FAISS & Gemini</p>
+            <p className="subtitle">Phase 3 — Production-Style RAG</p>
           </div>
           <button
             className="sidebar-toggle-btn"
@@ -81,7 +87,13 @@ export default function App() {
             </div>
           )}
           {messages.map((m, i) => (
-            <ChatMessage key={i} role={m.role} text={m.text} sources={m.sources} />
+            <ChatMessage 
+              key={i} 
+              role={m.role} 
+              text={m.text} 
+              sources={m.sources} 
+              confidence={m.confidence}
+            />
           ))}
           {loading && <ChatMessage role="assistant" text="Thinking..." />}
         </div>
@@ -98,6 +110,23 @@ export default function App() {
             <span className="slider"></span>
             <span className="toggle-label">Search knowledge base (RAG)</span>
           </label>
+
+          {useRag && (
+            <div className="top-k-container">
+              <label htmlFor="top-k-slider" className="top-k-label">
+                Retrieve chunks (K): <span className="top-k-val">{topK}</span>
+              </label>
+              <input
+                id="top-k-slider"
+                type="range"
+                min="1"
+                max="10"
+                value={topK}
+                onChange={(e) => setTopK(parseInt(e.target.value))}
+                className="top-k-slider"
+              />
+            </div>
+          )}
         </div>
 
         <div className="input-row">

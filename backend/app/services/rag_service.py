@@ -30,7 +30,7 @@ class RagService:
         self._model = genai.GenerativeModel(settings.GEMINI_MODEL)
         logger.info("RagService ready with model %s", settings.GEMINI_MODEL)
 
-    def generate_reply_with_context(self, message: str, use_rag: bool = True) -> Tuple[str, List[str]]:
+    def generate_reply_with_context(self, message: str, use_rag: bool = True, top_k: int = 4) -> Tuple[str, List[dict], float]:
         """Generate response by embedding user query, fetching top documents, and calling Gemini."""
         # Print temporary debug logs requested by user
         print(f"DEBUG: use_rag value received by backend: {use_rag}")
@@ -42,7 +42,7 @@ class RagService:
         if not use_rag or not has_docs:
             logger.info("Skipping RAG (use_rag=%s, has_docs=%s). Direct fallback to Gemini.", use_rag, has_docs)
             reply = gemini_service.generate_reply(message)
-            return reply, []
+            return reply, [], 0.0
 
         logger.info("Executing RAG flow for query (chars=%d)", len(message))
 
@@ -69,30 +69,46 @@ class RagService:
 
         except Exception as e:
             logger.exception("Failed to generate query embedding: %s. Falling back to direct chat.", e)
-            return gemini_service.generate_reply(message), []
+            return gemini_service.generate_reply(message), [], 0.0
 
-        # 2. Retrieve top matches from FAISS (top-4 chunks)
-        results = vector_store.search(query_embedding, top_k=4)
+        # 2. Retrieve top matches from FAISS (top-K chunks)
+        results = vector_store.search(query_embedding, top_k=top_k)
         
         # Print temporary debug logs requested by user
         print(f"DEBUG: number of chunks retrieved: {len(results)}")
         print(f"DEBUG: source filenames returned: {[meta['filename'] for meta, score in results]}")
 
+        # Add requested logs: Retrieved chunks and Similarity scores
+        logger.info("Retrieved chunks: %s", [meta['chunk_id'] for meta, score in results])
+        logger.info("Similarity scores: %s", [score for meta, score in results])
+
         if not results:
             logger.info("No matching chunks found in vector store. Calling Gemini directly.")
-            return gemini_service.generate_reply(message), []
+            return gemini_service.generate_reply(message), [], 0.0
 
-        # 3. Format context blocks and compile unique sources
+        # Calculate confidence score based on the highest cosine similarity score (best match)
+        best_similarity = results[0][1]
+        confidence = min(100.0, max(0.0, best_similarity) * 100.0)
+        confidence = round(confidence, 1)
+
+        # 3. Format context blocks and compile citations
         context_chunks = []
-        sources_set = set()
+        sources = []
         
         for idx, (meta, score) in enumerate(results):
-            logger.info("Match #%d: doc=%s, score=%.4f", idx + 1, meta["filename"], score)
-            context_chunks.append(f"Source: {meta['filename']}\nContent: {meta['text']}")
-            sources_set.add(meta["filename"])
+            logger.info("Match #%d: doc=%s, page=%d, chunk=%s, score=%.4f", 
+                        idx + 1, meta["filename"], meta.get("page_number", 1), meta["chunk_id"], score)
+            context_chunks.append(f"Source: {meta['filename']} (Page {meta.get('page_number', 1)})\nContent: {meta['text']}")
+            
+            sources.append({
+                "document_name": meta["filename"],
+                "page_number": meta.get("page_number", 1),
+                "chunk_id": meta["chunk_id"],
+                "text": meta["text"],
+                "similarity_score": round(score, 4)
+            })
 
         context_block = "\n---\n".join(context_chunks)
-        sources = list(sources_set)
 
         # 4. Construct context-aware prompt
         rag_prompt = (
@@ -112,7 +128,7 @@ class RagService:
         reply = (response.text or "").strip()
 
         logger.info("RAG generation complete (reply chars=%d)", len(reply))
-        return reply, sources
+        return reply, sources, confidence
 
 
 # Single shared instance

@@ -80,15 +80,22 @@ class LocalVectorStore:
 
         for doc_id, doc_meta in docs.items():
             filename = doc_meta["filename"]
-            for chunk in doc_meta["chunks"]:
+            uploaded_at = doc_meta.get("uploaded_at", datetime.now())
+            uploaded_at_str = uploaded_at.isoformat() if isinstance(uploaded_at, datetime) else str(uploaded_at)
+
+            for idx, chunk in enumerate(doc_meta["chunks"]):
                 text = chunk["text"]
                 vector = chunk["vector"]
 
                 # Track context metadata corresponding to index IDs
+                meta = chunk.get("metadata", {})
                 self.chunk_metadata_map.append({
                     "doc_id": doc_id,
                     "filename": filename,
-                    "text": text
+                    "text": text,
+                    "page_number": meta.get("page_number", 1),
+                    "chunk_id": meta.get("chunk_id", f"{doc_id}_p1_c{idx}"),
+                    "upload_timestamp": meta.get("upload_timestamp", uploaded_at_str)
                 })
                 all_vectors.append(vector)
 
@@ -101,16 +108,22 @@ class LocalVectorStore:
         else:
             logger.info("FAISS index is empty (no documents loaded)")
 
-    def add_document(self, doc_id: str, filename: str, size_bytes: int, chunks: List[str], embeddings: List[List[float]]) -> None:
+    def add_document(self, doc_id: str, filename: str, size_bytes: int, chunks: List[str], embeddings: List[List[float]], metadatas: List[Dict]) -> None:
         """Ingest a new document, add its embeddings to FAISS, and save to disk."""
-        if len(chunks) != len(embeddings):
-            raise ValueError("Mismatched counts between chunks and embeddings")
+        if len(chunks) != len(embeddings) or len(chunks) != len(metadatas):
+            raise ValueError("Mismatched counts between chunks, embeddings, and metadatas")
 
         doc_data = {
             "filename": filename,
             "size_bytes": size_bytes,
             "uploaded_at": datetime.now(),
-            "chunks": [{"text": chunks[i], "vector": embeddings[i]} for i in range(len(chunks))]
+            "chunks": [
+                {
+                    "text": chunks[i],
+                    "vector": embeddings[i],
+                    "metadata": metadatas[i]
+                } for i in range(len(chunks))
+            ]
         }
 
         self.documents["documents"][doc_id] = doc_data

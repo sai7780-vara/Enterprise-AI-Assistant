@@ -203,6 +203,10 @@ body {
 .controls-row {
   margin-top: 12px;
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 /* Toggle Switch Styling */
@@ -504,4 +508,165 @@ body {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
   z-index: 99;
+}
+
+/* --- Phase 3 Production RAG Upgrades --- */
+
+/* Top-K Configuration Control */
+.top-k-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(108, 140, 255, 0.05);
+  border: 1px solid rgba(108, 140, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.top-k-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  user-select: none;
+}
+
+.top-k-val {
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.top-k-slider {
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* Confidence Score Badge */
+.message-confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(46, 213, 115, 0.12);
+  border: 1px solid rgba(46, 213, 115, 0.3);
+  color: #2ed573;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+
+.confidence-value {
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+/* Enhanced Source Citations List & Cards */
+.source-citation-card {
+  width: 100%;
+  background: rgba(15, 18, 32, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.source-citation-card.expanded {
+  border-color: rgba(108, 140, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.source-citation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s ease;
+}
+
+.source-citation-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.source-citation-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.source-page {
+  font-size: 11px;
+  background: rgba(108, 140, 255, 0.15);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.source-citation-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-score {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.expand-icon {
+  font-size: 10px;
+  color: var(--muted);
+  width: 12px;
+  text-align: center;
+}
+
+.source-citation-body {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.source-chunk-id {
+  margin: 0 0 6px 0;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.source-chunk-id code {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #ff9f43;
+}
+
+.source-text-box {
+  background: rgba(15, 18, 32, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  padding: 8px 10px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.source-text {
+  margin: 0;
+  font-size: 12px;
+  color: #c4ccdf;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }

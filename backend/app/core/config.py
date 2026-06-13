@@ -31,6 +31,9 @@ class Settings:
     # Gemini embedding model to use.
     GEMINI_EMBEDDING_MODEL: str = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 
+    # Default number of chunks to retrieve for RAG.
+    RAG_TOP_K: int = int(os.getenv("RAG_TOP_K", "4"))
+
 
 # Single shared instance imported everywhere.
 settings = Settings()

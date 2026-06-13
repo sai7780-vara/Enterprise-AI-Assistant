@@ -23,11 +23,12 @@ def health() -> dict:
 def chat(payload: ChatRequest) -> ChatResponse:
     """Take a user message, retrieve context if enabled, and return Gemini's reply."""
     try:
-        reply, sources = rag_service.generate_reply_with_context(
+        reply, sources, confidence = rag_service.generate_reply_with_context(
             message=payload.message,
-            use_rag=payload.use_rag
+            use_rag=payload.use_rag,
+            top_k=payload.top_k
         )
-        return ChatResponse(reply=reply, sources=sources)
+        return ChatResponse(reply=reply, sources=sources, confidence=confidence)
     except Exception as exc:  # noqa: BLE001
         # Log the real error server-side, send a clean message to the client.
         logger.exception("Chat failed: %s", exc)
