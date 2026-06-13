@@ -33,7 +33,7 @@ export default function App() {
           text: response.reply, 
           sources: response.sources,
           confidence: response.confidence,
-          agentName: response.agent_name
+          agentName: response.selected_agent || response.agent_name
         }
       ]);
     } catch (err) {

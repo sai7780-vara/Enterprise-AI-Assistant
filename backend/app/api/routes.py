@@ -29,11 +29,16 @@ def chat(payload: ChatRequest) -> ChatResponse:
             use_rag=payload.use_rag,
             top_k=payload.top_k
         )
+        agent_type = agent_name.lower().split(" ")[0] if agent_name else None
+        res_confidence = confidence if agent_type == "rag" else None
+
         return ChatResponse(
             reply=reply, 
             sources=sources, 
-            confidence=confidence, 
-            agent_name=agent_name
+            confidence=res_confidence, 
+            agent_name=agent_name,
+            selected_agent=agent_name,
+            agent_type=agent_type
         )
     except Exception as exc:  # noqa: BLE001
         # Log the real error server-side, send a clean message to the client.

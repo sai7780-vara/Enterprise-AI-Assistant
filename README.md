@@ -4,31 +4,33 @@ A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) k
 
 ---
 
-## Phases Overview
+## Completed Phases
 
-*   **Phase 1 (Gemini Chat):** Basic endpoint for querying the Gemini models directly without document grounding.
-*   **Phase 2 (Local RAG):** Document parsing, page-by-page chunking, vector storage, and context retrieval matching.
-*   **Phase 3 (Production RAG):** Cosine similarity search (via L2-normalized FAISS IndexFlatIP), dynamic top-k adjustment, page citations, confidence scoring, and expandable source citation UI cards.
+*   **Phase 1 (Gemini Chat):** A direct, isolated endpoint for communicating with Gemini models without any document grounding.
+*   **Phase 2 (Local RAG):** Document page-by-page parsing, chunking, vector embeddings storage, and context retrieval matching.
+*   **Phase 3 (Production RAG):** High-performance cosine similarity search (via L2-normalized FAISS IndexFlatIP), dynamic top-k retrieval slider, detailed page citations, confidence percentage metrics, and expandable source citation UI cards.
 *   **Phase 4 (Agent Architecture):** Multi-agent routing via a Supervisor Agent to distribute queries to specialized domain agents (HR Agent, Finance Agent, IT Agent, and RAG Agent) with automatic model rotation on rate-limiting.
 
 ---
 
-## Architecture Flow
+## Phase 4 Architecture & Flow
 
 The execution trace of a query follows this multi-agent routing model:
 
 ```text
-User → React UI → FastAPI Endpoint → Supervisor Agent
-                                            │
-           ┌────────────────┬───────────────┼───────────────┐
-           ▼                ▼               ▼               ▼
-      [HR Agent]     [Finance Agent]    [IT Agent]     [RAG Agent]
-           │                │               │               │
-       Gemini API       Gemini API      Gemini API     FAISS / RAG
-           │                │               │               │
-           └────────────────┴───────────────┼───────────────┘
-                                            ▼
-                                     React UI Display
+User
+  ↓
+React Frontend
+  ↓
+FastAPI Backend
+  ↓
+Supervisor Agent
+  ↓
+[HR Agent] or [Finance Agent] or [IT Agent] or [RAG Agent]
+  ↓
+Gemini API or RAG Service
+  ↓
+Response
 ```
 
 1. **User Request**: The user enters a question in the React frontend.
@@ -40,138 +42,124 @@ User → React UI → FastAPI Endpoint → Supervisor Agent
 
 ---
 
+## Specialist Agents & Responsibilities
+
+*   **Supervisor Agent (`supervisor_agent.py`):** Acts as the central traffic controller. It uses a zero-shot classification system prompt to determine which subject-matter expert is best suited to resolve the user's request.
+*   **HR Agent (`hr_agent.py`):** Handles Human Resources protocols. Specialized in leave policies, employee benefits, holidays, and employee handbook queries.
+*   **Finance Agent (`finance_agent.py`):** Handles financial questions, invoicing procedures, expense reports, reimbursements, and budgets.
+*   **IT Agent (`it_agent.py`):** Handles hardware provisioning (such as laptop requests), VPN credentials, password resets, systems access, and technical support.
+*   **RAG Agent (`rag_agent.py`):** Specialized in document retrieval. If a query is classified as a document search or requests summarizing/parsing of custom uploaded files, it invokes the Phase 3 `rag_service` to run a semantic FAISS search.
+
+---
+
 ## Phase 4 Test Questions & Routing
 
 The routing logic can be validated with these test cases:
-*   **"What is the leave policy?"** → Routed to **HR Agent** (for leave, holidays, handbook, benefits).
-*   **"How do I submit an expense report?"** → Routed to **Finance Agent** (for expense forms, reimbursements, invoicing).
-*   **"My VPN is not working."** → Routed to **IT Agent** (for laptop provisioning, VPN configurations, tech support).
-*   **"Summarize the uploaded PDF."** → Routed to **RAG Agent** (for custom local document searches and matching context blocks).
+*   **"What is the leave policy?"** → Routed to **HR Agent**
+*   **"How do I submit an expense report?"** → Routed to **Finance Agent**
+*   **"My VPN is not working."** → Routed to **IT Agent**
+*   **"Summarize the uploaded PDF."** → Routed to **RAG Agent**
 
 ---
 
-## Project Structure
+## API Documentation (Phase 4 Specification)
 
-```text
-enterprise-ai-assistant/
-├── backend/
-│   ├── app/
-│   │   ├── agents/
-│   │   │   ├── __init__.py
-│   │   │   ├── finance_agent.py      # Finance Specialist
-│   │   │   ├── hr_agent.py           # HR Specialist
-│   │   │   ├── it_agent.py           # IT Specialist
-│   │   │   ├── rag_agent.py          # RAG Retrieval Specialist
-│   │   │   └── supervisor_agent.py   # Supervisor & Classifier Agent
-│   │   ├── api/
-│   │   │   └── routes.py             # HTTP endpoints: /chat, /documents, etc.
-│   │   ├── core/
-│   │   │   ├── config.py             # Reads settings (API keys, defaults, models)
-│   │   │   └── logger.py             # Central logging setup
-│   │   ├── schemas/
-│   │   │   ├── chat.py               # Pydantic models (ChatRequest, SourceCitation, etc.)
-│   │   │   └── document.py           # Document schemas (UploadResponse, etc.)
-│   │   ├── services/
-│   │   │   ├── document_service.py   # Page-by-page parsing, chunking, and embedding
-│   │   │   ├── gemini_service.py     # Simple Gemini API chat connector
-│   │   │   ├── rag_service.py        # RAG orchestrator, prompt grounding, confidence scoring
-│   │   │   └── vector_store.py       # FAISS database interface, pickle indexing
-│   │   └── main.py                  # CORS setup, FastAPI app builder
-│   ├── requirements.txt
-│   ├── test_agents.py                # Local routing test script
-│   └── .gitignore
-│
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   │   ├── ChatMessage.jsx       # Message bubble with expandable source citation cards
-    │   │   └── KnowledgeManager.jsx  # Knowledge base sidebar drawer & upload manager
-    │   ├── api.js                   # API connector (sendChatMessage, uploadDocument, etc.)
-    │   ├── App.jsx                  # Main interface: sidebar triggers, RAG configurations, slider
-    │   ├── main.jsx                 # Vite entrypoint
-    │   └── styles.css               # premium stylesheets & glassmorphic aesthetics
-    ├── index.html
-    └── package.json
-```
+### Documents Endpoints
+
+*   **POST `/api/documents`:** Ingest a file (PDF, TXT, MD) into the database.
+*   **GET `/api/documents`:** List metadata of all ingested documents.
+*   **DELETE `/api/documents/{doc_id}`:** Delete a document and rebuild the FAISS index.
+
+### Chat Endpoint
+
+*   **POST `/api/chat`:** Chat with the Agent Architecture.
+    *   **Request Payload:**
+        ```json
+        {
+          "message": "How do I submit an expense report?",
+          "use_rag": true,
+          "top_k": 4
+        }
+        ```
+    *   **Standard Domain Agent Response (e.g., Finance, HR, IT):**
+        ```json
+        {
+          "reply": "To submit an expense report, go to the expense dashboard, fill out the reimbursement forms, and attach all receipts...",
+          "selected_agent": "Finance Agent",
+          "agent_type": "finance",
+          "sources": [],
+          "confidence": null
+        }
+        ```
+    *   **RAG Agent Response (Searching Uploaded PDFs):**
+        ```json
+        {
+          "reply": "Based on page 4 of the guidelines, you can request travel refunds...",
+          "selected_agent": "RAG Agent",
+          "agent_type": "rag",
+          "sources": [
+            {
+              "document_name": "expense-guide.pdf",
+              "page_number": 4,
+              "chunk_id": "doc_p4_c1",
+              "text": "Travel reimbursement claims must be filed within 30 days.",
+              "similarity_score": 0.8143
+            }
+          ],
+          "confidence": 81.4
+        }
+        ```
 
 ---
 
-## Backend Setup
+## Architectural Explanations
 
-1. **Navigate to backend and build environment:**
+### What is an Agent?
+An agent is an autonomous software entity that uses a Large Language Model (LLM) as its central engine, coupled with a specialized identity (system instructions/prompt) and a narrow boundary of operation, to complete specific tasks or resolve queries within a defined domain of expertise.
+
+### What is Supervisor Routing?
+Supervisor routing is an architectural pattern where a central "supervisor" or "coordinator" agent receives the raw user input, analyzes the intent, and assigns it to a specialist agent. This separates the operational logic of various departments, ensuring that the specialized agents are not distracted by irrelevant instructions, leading to higher output accuracy and fewer token errors.
+
+### Phase 3 RAG vs. Phase 4 Multi-Agent Architecture
+*   **Phase 3 RAG** was a single-path system: every prompt was sent directly to a retrieval loop that performed a search on the vector DB, compiled the top chunks, and returned a grounded response.
+*   **Phase 4 Agent Architecture** introduces branching pathways. It evaluates user intent first. If the user asks general procedural questions (like HR benefits or VPN access), it bypasses the expensive database retrieval completely and routes to a specialized agent.
+
+### Why RAG is now One Agent
+Under a multi-agent framework, RAG is no longer the entire system; it is treated as a specialized tool or sub-agent. The RAG Agent is called only when the supervisor decides that a query requires searching custom files, keeping document indexing decoupled from general conversation.
+
+### Why this is not LangGraph yet (LangGraph in Phase 5)
+In Phase 4, the routing and agent communication are written in pure, native Python code (using static conditionals and linear routing paths). While highly performant for this level of complexity, it does not support cyclic loops, state persistence across complex multi-step tasks, or advanced human-in-the-loop overrides. Phase 5 will transition the architecture to a stateful, graph-based framework using **LangGraph** to allow complex cycles, memory, and advanced agent coordination.
+
+---
+
+## Development Setup
+
+### Backend Setup
+1. Navigate to backend:
    ```bash
    cd backend
    python -m venv .venv
    source .venv/bin/activate       # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
    ```
-
-2. **Configure Environment variables:**
-   Create a `.env` file from the example:
-   ```bash
-   cp .env.example .env
-   ```
-   Open `.env` and fill in your Gemini API key:
+2. Configure `.env`:
+   Create a `.env` file from `.env.example` and set your API key:
    ```text
    GEMINI_API_KEY=your-api-key-here
-   GEMINI_MODEL=gemini-3.5-flash
+   GEMINI_MODEL=gemini-2.5-flash
    GEMINI_EMBEDDING_MODEL=gemini-embedding-001
    FRONTEND_ORIGIN=http://localhost:5173
    ```
-
-3. **Run the server:**
+3. Run:
    ```bash
    uvicorn app.main:app --reload
    ```
-   * Backend runs at **http://localhost:8000**.
-   * Interactive OpenAPI swagger docs: **http://localhost:8000/docs**.
 
----
-
-## Frontend Setup
-
-1. **Navigate to frontend and run Dev server:**
+### Frontend Setup
+1. Navigate to frontend:
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
-   * Frontend runs at **http://localhost:5173**. Open this URL in your web browser.
-
----
-
-## API Endpoints
-
-### Documents
-
-*   **POST `/api/documents`:** Ingest a file (PDF, TXT, MD) into the database.
-*   **GET `/api/documents`:** List metadata of all ingested documents.
-*   **DELETE `/api/documents/{doc_id}`:** Delete a document and rebuild the FAISS index.
-
-### Chat
-
-*   **POST `/api/chat`:** Chat with the AI (Direct or RAG-grounded).
-    *   **Request Body:**
-        ```json
-        {
-          "message": "What is the secret code word?",
-          "use_rag": true,
-          "top_k": 3
-        }
-        ```
-    *   **Response Shape:**
-        ```json
-        {
-          "reply": "The secret code word is BANANA.",
-          "sources": [
-            {
-              "document_name": "test_phase_3.txt",
-              "page_number": 1,
-              "chunk_id": "b3ad6bb7_p1_c0",
-              "text": "The secret code word is BANANA. This is snippet 1.",
-              "similarity_score": 0.7378
-            }
-          ],
-          "confidence": 73.8
-        }
-        ```
+2. Open **http://localhost:5173** to run the app.

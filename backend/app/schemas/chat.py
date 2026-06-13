@@ -7,9 +7,7 @@ Defining them separately keeps API contracts explicit and self-documenting.
 from pydantic import BaseModel, Field
 
 
-from typing import List
-from pydantic import BaseModel, Field
-
+from typing import List, Optional
 
 class SourceCitation(BaseModel):
     document_name: str = Field(..., description="Name of the source document")
@@ -34,7 +32,12 @@ class ChatResponse(BaseModel):
     # List of source citations used for context.
     sources: List[SourceCitation] = Field(default_factory=list, description="Documents used for context")
     # Retrieval confidence score.
-    confidence: float = Field(default=0.0, description="Retrieval confidence percentage")
+    confidence: Optional[float] = Field(default=None, description="Retrieval confidence percentage")
     # The name of the agent that resolved the request.
-    agent_name: str = Field(..., description="The name of the agent that resolved this query")
+    agent_name: Optional[str] = Field(default=None, description="The name of the agent that resolved this query")
+    # The selected agent resolving the query (Phase 4).
+    selected_agent: Optional[str] = Field(default=None, description="The name of the agent that resolved this query (selected_agent)")
+    # The lowercase shortcode for the agent type (Phase 4).
+    agent_type: Optional[str] = Field(default=None, description="The type of the agent (e.g. hr, finance, it, rag)")
+
 
