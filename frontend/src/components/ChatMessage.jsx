@@ -1,8 +1,28 @@
 import { useState } from "react";
 
+const getAgentClass = (name) => {
+  if (!name) return "";
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes("hr")) return "hr-agent";
+  if (lowerName.includes("finance")) return "finance-agent";
+  if (lowerName.includes("it")) return "it-agent";
+  if (lowerName.includes("rag")) return "rag-agent";
+  return "";
+};
+
+const getAgentEmoji = (name) => {
+  if (!name) return "👤";
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes("hr")) return "👔";
+  if (lowerName.includes("finance")) return "💰";
+  if (lowerName.includes("it")) return "💻";
+  if (lowerName.includes("rag")) return "🔍";
+  return "👤";
+};
+
 // Presentational component: renders one message bubble.
 // Styling differs by role (user vs assistant).
-export default function ChatMessage({ role, text, sources, confidence }) {
+export default function ChatMessage({ role, text, sources, confidence, agentName }) {
   const [expandedSourceIdx, setExpandedSourceIdx] = useState(null);
 
   const toggleExpand = (idx) => {
@@ -13,11 +33,19 @@ export default function ChatMessage({ role, text, sources, confidence }) {
     <div className={`message ${role}`}>
       <span className="role-label">{role === "user" ? "You" : "Assistant"}</span>
       <div className="bubble">
-        {role === "assistant" && confidence !== undefined && confidence > 0 && (
-          <div className="message-confidence-badge">
-            🎯 Retrieval Confidence: <span className="confidence-value">{confidence}%</span>
-          </div>
-        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+          {role === "assistant" && agentName && (
+            <div className={`message-agent-badge ${getAgentClass(agentName)}`}>
+              {getAgentEmoji(agentName)} Handled by: <span className="agent-value">{agentName}</span>
+            </div>
+          )}
+          {role === "assistant" && confidence !== undefined && confidence > 0 && (
+            <div className="message-confidence-badge">
+              🎯 Retrieval Confidence: <span className="confidence-value">{confidence}%</span>
+            </div>
+          )}
+        </div>
+
         <div className="message-content">{text}</div>
         {role === "assistant" && sources && sources.length > 0 && (
           <div className="message-sources">

@@ -560,6 +560,50 @@ body {
   letter-spacing: 0.3px;
 }
 
+/* Agent Badge */
+.message-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(108, 140, 255, 0.12);
+  border: 1px solid rgba(108, 140, 255, 0.3);
+  color: #a3b8ff;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+  margin-right: 8px;
+}
+
+.agent-value {
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+/* Agent-specific themes */
+.message-agent-badge.hr-agent {
+  background: rgba(255, 94, 94, 0.12);
+  border: 1px solid rgba(255, 94, 94, 0.3);
+  color: #ff8a8a;
+}
+.message-agent-badge.finance-agent {
+  background: rgba(46, 213, 115, 0.12);
+  border: 1px solid rgba(46, 213, 115, 0.3);
+  color: #2ed573;
+}
+.message-agent-badge.it-agent {
+  background: rgba(255, 159, 67, 0.12);
+  border: 1px solid rgba(255, 159, 67, 0.3);
+  color: #ffb86c;
+}
+.message-agent-badge.rag-agent {
+  background: rgba(108, 140, 255, 0.12);
+  border: 1px solid rgba(108, 140, 255, 0.3);
+  color: #a3b8ff;
+}
+
+
 .confidence-value {
   font-weight: 700;
   margin-left: 3px;

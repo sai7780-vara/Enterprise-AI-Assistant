@@ -124,8 +124,7 @@ class RagService:
 
         # 5. Generate content
         logger.info("Sending RAG-grounded prompt to Gemini (chunks=%d, sources=%d)", len(context_chunks), len(sources))
-        response = self._model.generate_content(rag_prompt)
-        reply = (response.text or "").strip()
+        reply = gemini_service.generate_reply(rag_prompt)
 
         logger.info("RAG generation complete (reply chars=%d)", len(reply))
         return reply, sources, confidence

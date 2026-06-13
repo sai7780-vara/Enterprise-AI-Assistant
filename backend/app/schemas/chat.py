@@ -35,3 +35,6 @@ class ChatResponse(BaseModel):
     sources: List[SourceCitation] = Field(default_factory=list, description="Documents used for context")
     # Retrieval confidence score.
     confidence: float = Field(default=0.0, description="Retrieval confidence percentage")
+    # The name of the agent that resolved the request.
+    agent_name: str = Field(..., description="The name of the agent that resolved this query")
+

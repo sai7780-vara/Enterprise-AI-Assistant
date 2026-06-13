@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.document import UploadResponse, DocumentListResponse
 from app.services.rag_service import rag_service
+from app.agents.supervisor_agent import supervisor_agent
 from app.services.document_service import document_service
 from app.services.vector_store import vector_store
 from app.core.logger import get_logger
@@ -21,14 +22,19 @@ def health() -> dict:
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
-    """Take a user message, retrieve context if enabled, and return Gemini's reply."""
+    """Take a user message, route it through the Supervisor Agent to resolve it."""
     try:
-        reply, sources, confidence = rag_service.generate_reply_with_context(
+        reply, sources, confidence, agent_name = supervisor_agent.route_and_resolve(
             message=payload.message,
             use_rag=payload.use_rag,
             top_k=payload.top_k
         )
-        return ChatResponse(reply=reply, sources=sources, confidence=confidence)
+        return ChatResponse(
+            reply=reply, 
+            sources=sources, 
+            confidence=confidence, 
+            agent_name=agent_name
+        )
     except Exception as exc:  # noqa: BLE001
         # Log the real error server-side, send a clean message to the client.
         logger.exception("Chat failed: %s", exc)

@@ -32,7 +32,8 @@ export default function App() {
           role: "assistant", 
           text: response.reply, 
           sources: response.sources,
-          confidence: response.confidence
+          confidence: response.confidence,
+          agentName: response.agent_name
         }
       ]);
     } catch (err) {
@@ -65,7 +66,7 @@ export default function App() {
         <header className="app-header">
           <div className="header-titles">
             <h1>Enterprise AI Knowledge Assistant</h1>
-            <p className="subtitle">Phase 3 — Production-Style RAG</p>
+            <p className="subtitle">Phase 4 — Agent Architecture</p>
           </div>
           <button
             className="sidebar-toggle-btn"
@@ -93,6 +94,7 @@ export default function App() {
               text={m.text} 
               sources={m.sources} 
               confidence={m.confidence}
+              agentName={m.agentName}
             />
           ))}
           {loading && <ChatMessage role="assistant" text="Thinking..." />}
