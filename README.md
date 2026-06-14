@@ -175,7 +175,35 @@ Phase 6 introduces the Model Context Protocol (MCP) to decouple domain agents fr
 
 ---
 
+## Environment Variables
+
+The following environment variables are required to run the backend:
+* `GEMINI_API_KEY`: The API key to access Google Gemini models.
+* `GEMINI_MODEL`: The model used for generation (defaults to `gemini-2.5-flash`).
+* `GEMINI_EMBEDDING_MODEL`: The model used for generating embeddings (defaults to `gemini-embedding-001`).
+* `FRONTEND_ORIGIN`: The client address allowed by CORS (defaults to `http://localhost:5173`).
+
+---
+
+## Common Errors & Fixes
+
+### 1. `stdout` Log Contamination (JSON-RPC Decoders Crash)
+* **Error**: The backend client logs throw JSON decode errors (`json.decoder.JSONDecodeError`) when communicating with MCP servers.
+* **Fix**: Ensure that all logging or printing inside your MCP server code (e.g. `employee_db_server.py`) is directed to `sys.stderr` and NOT `sys.stdout`. `sys.stdout` must be reserved strictly for JSON-RPC message frames.
+
+### 2. Subprocess Timeout / Connection Refused
+* **Error**: App fails to connect to the MCP server or triggers a timeout.
+* **Fix**: Ensure the virtual environment `.venv` is activated and packages like `fastapi` and `google-generativeai` are installed inside it. The client spawns the server subprocesses using `sys.executable` to inherit the active virtual environment context.
+
+---
+
+## GitHub Branch Information
+* **Branch Name**: `phase-6-mcp-servers`
+
+---
+
 ## Learning Documentation
 
-*   [Phase 5 Learning Guide](PHASE_5_LEARNING_GUIDE.md) — A comprehensive guide explaining LangGraph orchestration, StateGraph structure, Agent-to-Agent (A2A) communication, and multi-agent interview questions.
-*   [Phase 6 Learning Guide](PHASE_6_MCP_LEARNING_GUIDE.md) — A comprehensive guide explaining the Model Context Protocol (MCP), stdio JSON-RPC subprocess servers, tool wrapping, structured error handling, and 20 interview Q&As.
+*   [Learning Guide](LEARNING_GUIDE.md) — A comprehensive guide explaining the Model Context Protocol (MCP), stdio JSON-RPC subprocess servers, tool wrapping, structured error handling, and 20 interview Q&As.
+*   [Architecture Guide](ARCHITECTURE.md) — Explains the Phase 6 structural design, execution paths, and component layout.
+
