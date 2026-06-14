@@ -151,6 +151,35 @@ Composite, multi-department queries invoke the LangGraph StateGraph engine:
 
 ---
 
+## Environment Variables
+
+The following environment variables are required to run the backend:
+* `GEMINI_API_KEY`: The API key to access Google Gemini models.
+* `GEMINI_MODEL`: The model used for generation (defaults to `gemini-2.5-flash`).
+* `GEMINI_EMBEDDING_MODEL`: The model used for generating embeddings (defaults to `gemini-embedding-001`).
+* `FRONTEND_ORIGIN`: The client address allowed by CORS (defaults to `http://localhost:5173`).
+
+---
+
+## Common Errors & Fixes
+
+### 1. `InvalidStateException` or Reducer List Accumulation
+* **Error**: Graph states (like the list of remaining steps or execution paths) are not clearing properly across requests.
+* **Fix**: Ensure that every time the FastAPI endpoint invokes the graph workflow, it constructs a fresh dictionary payload representing the `initial_state`. Do not mutate a global dictionary instance.
+
+### 2. State Mapping Schema Mismatch
+* **Error**: Graph executions throw a `KeyError` or fail to merge updates.
+* **Fix**: Ensure that all graph nodes return dictionaries that match keys defined in the `AgentState` schema class located inside `backend/app/graph/state.py`.
+
+---
+
+## GitHub Branch Information
+* **Branch Name**: `phase-5-langgraph-a2a`
+* **Next Branch**: `phase-6-mcp-servers`
+
+---
+
 ## Learning Documentation
 
-*   [Phase 5 Learning Guide](PHASE_5_LEARNING_GUIDE.md) — A comprehensive guide explaining LangGraph orchestration, StateGraph structure, Agent-to-Agent (A2A) communication, and multi-agent interview questions.
+*   [Phase 5 Learning Guide](LEARNING_GUIDE.md) — A comprehensive guide explaining LangGraph orchestration, StateGraph structure, Agent-to-Agent (A2A) communication, and multi-agent interview questions.
+
