@@ -43,6 +43,10 @@ class ChatResponse(BaseModel):
     execution_path: List[str] = Field(default_factory=list, description="The list of nodes executed in the workflow")
     # The name of the workflow executed (Phase 5).
     workflow_type: Optional[str] = Field(default=None, description="The type of the workflow (e.g. onboarding, travel, cross_functional)")
+    # The name of the tool executed (Phase 6).
+    selected_tool: Optional[str] = Field(default=None, description="The name of the tool executed (Phase 6)")
+    # The name of the MCP server utilized (Phase 6).
+    mcp_server: Optional[str] = Field(default=None, description="The name of the MCP server utilized (Phase 6)")
 
 
 

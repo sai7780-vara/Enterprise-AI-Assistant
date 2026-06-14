@@ -23,17 +23,21 @@ class GeminiService:
             "gemini-3.5-flash",
             "gemini-2.5-flash",
             "gemini-2.0-flash",
-            "gemini-1.5-flash",
             "gemini-2.5-pro",
-            "gemini-1.5-pro",
             "gemini-2.0-flash-lite"
         ]
         self.current_model_idx = self.models.index(settings.GEMINI_MODEL) if settings.GEMINI_MODEL in self.models else 0
         self._model = genai.GenerativeModel(self.models[self.current_model_idx])
         logger.info("GeminiService ready (model=%s)", self.models[self.current_model_idx])
 
+    def _rotate_model(self, attempts: int, max_attempts: int) -> None:
+        self.current_model_idx = (self.current_model_idx + 1) % len(self.models)
+        next_model = self.models[self.current_model_idx]
+        self._model = genai.GenerativeModel(next_model)
+        logger.info("Rotated to model %s (attempt %d/%d)", next_model, attempts, max_attempts)
+
     def generate_reply(self, message: str) -> str:
-        """Send one user message to Gemini, return the text reply. Rotates models on ResourceExhausted with backoff."""
+        """Send one user message to Gemini, return the text reply. Rotates models on failure with backoff."""
         import time
         attempts = 0
         max_attempts = len(self.models) * 2
@@ -55,12 +59,20 @@ class GeminiService:
                 )
                 time.sleep(backoff)
                 backoff = min(backoff * 2.0, 30.0)
-                self.current_model_idx = (self.current_model_idx + 1) % len(self.models)
-                next_model = self.models[self.current_model_idx]
-                self._model = genai.GenerativeModel(next_model)
-                logger.info("Rotated to model %s (attempt %d/%d)", next_model, attempts, max_attempts)
+                self._rotate_model(attempts, max_attempts)
                 if attempts >= max_attempts:
                     logger.error("All models exhausted. Raising quota exception.")
+                    raise e
+            except Exception as e:
+                attempts += 1
+                logger.warning(
+                    "Error on model %s: %s. Rotating model immediately...",
+                    model_name,
+                    e
+                )
+                self._rotate_model(attempts, max_attempts)
+                if attempts >= max_attempts:
+                    logger.error("All models exhausted. Raising last exception.")
                     raise e
         return ""
 

@@ -14,6 +14,10 @@ class AgentState(TypedDict):
     it_response: Optional[str]
     rag_response: Optional[str]
     
+    # Tool execution details
+    selected_tool: Optional[str]
+    mcp_server: Optional[str]
+    
     # RAG metadata
     sources: List[dict]
     confidence: Optional[float]

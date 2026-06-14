@@ -43,26 +43,56 @@ class SupervisorAgent:
             logger.exception("Supervisor classification failed, defaulting to RAG: %s", exc)
             return "RAG"
 
-    def route_and_resolve(self, message: str, use_rag: bool = True, top_k: int = 4) -> Tuple[str, List[dict], float, str]:
+    def route_and_resolve(self, message: str, use_rag: bool = True, top_k: int = 4) -> dict:
         """Analyze user query, decide which agent should handle it, and route it."""
         logger.info("Supervisor Agent analyzing query: %s", message)
         clean_category = self.classify(message)
         logger.info("Supervisor classified query as: %s", clean_category)
 
+        state = {"selected_tool": None, "mcp_server": None}
+
         # Route the request to the correct agent
         if clean_category == "HR":
-            reply = hr_agent.handle_query(message)
-            return reply, [], 0.0, hr_agent.agent_name
+            reply = hr_agent.handle_query(message, state)
+            return {
+                "reply": reply,
+                "sources": [],
+                "confidence": 0.0,
+                "agent_name": hr_agent.agent_name,
+                "selected_tool": state["selected_tool"],
+                "mcp_server": state["mcp_server"]
+            }
         elif clean_category == "FINANCE":
-            reply = finance_agent.handle_query(message)
-            return reply, [], 0.0, finance_agent.agent_name
+            reply = finance_agent.handle_query(message, state)
+            return {
+                "reply": reply,
+                "sources": [],
+                "confidence": 0.0,
+                "agent_name": finance_agent.agent_name,
+                "selected_tool": state["selected_tool"],
+                "mcp_server": state["mcp_server"]
+            }
         elif clean_category == "IT":
-            reply = it_agent.handle_query(message)
-            return reply, [], 0.0, it_agent.agent_name
+            reply = it_agent.handle_query(message, state)
+            return {
+                "reply": reply,
+                "sources": [],
+                "confidence": 0.0,
+                "agent_name": it_agent.agent_name,
+                "selected_tool": state["selected_tool"],
+                "mcp_server": state["mcp_server"]
+            }
         else:
             # Default to RAG Agent for RAG category, unrecognized categories, or multi-agent fallbacks
-            reply, sources, confidence = rag_agent.handle_query(message, use_rag=use_rag, top_k=top_k)
-            return reply, sources, confidence, rag_agent.agent_name
+            reply, sources, confidence = rag_agent.handle_query(message, use_rag=use_rag, top_k=top_k, state=state)
+            return {
+                "reply": reply,
+                "sources": sources,
+                "confidence": confidence,
+                "agent_name": rag_agent.agent_name,
+                "selected_tool": state["selected_tool"],
+                "mcp_server": state["mcp_server"]
+            }
 
 
 

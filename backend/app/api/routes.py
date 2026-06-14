@@ -42,6 +42,8 @@ def chat(payload: ChatRequest) -> ChatResponse:
                 "finance_response": None,
                 "it_response": None,
                 "rag_response": None,
+                "selected_tool": None,
+                "mcp_server": None,
                 "sources": [],
                 "confidence": None,
                 "final_reply": None,
@@ -59,28 +61,33 @@ def chat(payload: ChatRequest) -> ChatResponse:
                 selected_agent="Supervisor Agent",
                 agent_type="supervisor",
                 execution_path=result["execution_path"],
-                workflow_type=result["workflow_type"]
+                workflow_type=result["workflow_type"],
+                selected_tool=result.get("selected_tool"),
+                mcp_server=result.get("mcp_server")
             )
 
         # 3. Simple routing (Phase 4 Fallback)
         logger.info("Routing query via Phase 4 single-agent fallback (category=%s)", category)
-        reply, sources, confidence, agent_name = supervisor_agent.route_and_resolve(
+        res_dict = supervisor_agent.route_and_resolve(
             message=payload.message,
             use_rag=payload.use_rag,
             top_k=payload.top_k
         )
+        agent_name = res_dict["agent_name"]
         agent_type = agent_name.lower().split(" ")[0] if agent_name else None
-        res_confidence = confidence if agent_type == "rag" else None
+        res_confidence = res_dict["confidence"] if agent_type == "rag" else None
 
         return ChatResponse(
-            reply=reply, 
-            sources=sources, 
+            reply=res_dict["reply"], 
+            sources=res_dict["sources"], 
             confidence=res_confidence, 
             agent_name=agent_name,
             selected_agent=agent_name,
             agent_type=agent_type,
             execution_path=[],
-            workflow_type=None
+            workflow_type=None,
+            selected_tool=res_dict["selected_tool"],
+            mcp_server=res_dict["mcp_server"]
         )
     except Exception as exc:  # noqa: BLE001
         # Log the real error server-side, send a clean message to the client.

@@ -91,13 +91,16 @@ def hr_node(state: AgentState) -> Dict[str, Any]:
     logger.info("LangGraph: HR Specialist Node running...")
     from app.agents.hr_agent import hr_agent
     
-    reply = hr_agent.handle_query(state["message"], state)
+    state_dict = dict(state)
+    reply = hr_agent.handle_query(state["message"], state_dict)
     execution_path = list(state.get("execution_path", []))
     execution_path.append("HR Agent")
     
     return {
         "hr_response": reply,
-        "execution_path": execution_path
+        "execution_path": execution_path,
+        "selected_tool": state_dict.get("selected_tool"),
+        "mcp_server": state_dict.get("mcp_server")
     }
 
 
@@ -105,13 +108,16 @@ def finance_node(state: AgentState) -> Dict[str, Any]:
     logger.info("LangGraph: Finance Specialist Node running...")
     from app.agents.finance_agent import finance_agent
     
-    reply = finance_agent.handle_query(state["message"], state)
+    state_dict = dict(state)
+    reply = finance_agent.handle_query(state["message"], state_dict)
     execution_path = list(state.get("execution_path", []))
     execution_path.append("Finance Agent")
     
     return {
         "finance_response": reply,
-        "execution_path": execution_path
+        "execution_path": execution_path,
+        "selected_tool": state_dict.get("selected_tool"),
+        "mcp_server": state_dict.get("mcp_server")
     }
 
 
@@ -119,13 +125,16 @@ def it_node(state: AgentState) -> Dict[str, Any]:
     logger.info("LangGraph: IT Specialist Node running...")
     from app.agents.it_agent import it_agent
     
-    reply = it_agent.handle_query(state["message"], state)
+    state_dict = dict(state)
+    reply = it_agent.handle_query(state["message"], state_dict)
     execution_path = list(state.get("execution_path", []))
     execution_path.append("IT Agent")
     
     return {
         "it_response": reply,
-        "execution_path": execution_path
+        "execution_path": execution_path,
+        "selected_tool": state_dict.get("selected_tool"),
+        "mcp_server": state_dict.get("mcp_server")
     }
 
 
@@ -133,10 +142,12 @@ def rag_node(state: AgentState) -> Dict[str, Any]:
     logger.info("LangGraph: RAG Specialist Node running...")
     from app.agents.rag_agent import rag_agent
     
+    state_dict = dict(state)
     reply, sources, confidence = rag_agent.handle_query(
         state["message"],
         use_rag=state.get("use_rag", True),
-        top_k=state.get("top_k", 4)
+        top_k=state.get("top_k", 4),
+        state=state_dict
     )
     execution_path = list(state.get("execution_path", []))
     execution_path.append("RAG Agent")
@@ -145,7 +156,9 @@ def rag_node(state: AgentState) -> Dict[str, Any]:
         "rag_response": reply,
         "sources": sources,
         "confidence": confidence,
-        "execution_path": execution_path
+        "execution_path": execution_path,
+        "selected_tool": state_dict.get("selected_tool"),
+        "mcp_server": state_dict.get("mcp_server")
     }
 
 

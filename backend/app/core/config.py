@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 
 # Load variables from a .env file in the backend root into os.environ.
-load_dotenv()
+load_dotenv(override=True)
 
 
 class Settings:

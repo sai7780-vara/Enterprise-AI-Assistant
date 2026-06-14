@@ -22,7 +22,7 @@ const getAgentEmoji = (name) => {
 
 // Presentational component: renders one message bubble.
 // Styling differs by role (user vs assistant).
-export default function ChatMessage({ role, text, sources, confidence, agentName, executionPath, workflowType }) {
+export default function ChatMessage({ role, text, sources, confidence, agentName, executionPath, workflowType, selectedTool, mcpServer }) {
   const [expandedSourceIdx, setExpandedSourceIdx] = useState(null);
 
   const toggleExpand = (idx) => {
@@ -37,6 +37,16 @@ export default function ChatMessage({ role, text, sources, confidence, agentName
           {role === "assistant" && agentName && (
             <div className={`message-agent-badge ${getAgentClass(agentName)}`}>
               {getAgentEmoji(agentName)} Handled by: <span className="agent-value">{agentName}</span>
+            </div>
+          )}
+          {role === "assistant" && selectedTool && (
+            <div className="message-tool-badge">
+              🔧 Tool: <span className="tool-value">{selectedTool}</span>
+            </div>
+          )}
+          {role === "assistant" && mcpServer && (
+            <div className="message-mcp-badge">
+              📡 Server: <span className="mcp-value">{mcpServer}</span>
             </div>
           )}
           {role === "assistant" && confidence !== undefined && confidence > 0 && (
