@@ -134,3 +134,36 @@ enterprise-ai-assistant/
       "confidence": 73.8
     }
     ```
+
+---
+
+## Environment Variables
+
+The following environment variables are required to run the backend:
+* `GEMINI_API_KEY`: The API key to access Google Gemini models.
+* `GEMINI_MODEL`: The model used for generation (defaults to `gemini-2.5-flash`).
+* `GEMINI_EMBEDDING_MODEL`: The model used for generating embeddings (defaults to `gemini-embedding-001`).
+* `FRONTEND_ORIGIN`: The client address allowed by CORS (defaults to `http://localhost:5173`).
+
+---
+
+## Common Errors & Fixes
+
+### 1. `IndexFlatIP` Assertions and Dimension Mismatches
+* **Error**: `AssertionError: dimension mismatch` when adding or searching documents.
+* **Fix**: Ensure that the vector dimension matches the embedding model output. `gemini-embedding-001` outputs vectors of size 3072. If you change models, you must delete `knowledge_store.pkl` and re-ingest files.
+
+### 2. High Memory Usage or Slow Starts
+* **Error**: App takes a long time to start or runs out of memory.
+* **Fix**: Because vectors are cached in-memory using Pickle and FAISS CPU, massive libraries of documents will increase RAM footprint. Persist index builds by making sure `knowledge_store.pkl` is saved properly, or split uploads into smaller batches.
+
+### 3. Missing Citations in UI
+* **Error**: Answers are generated, but no source cards are visible.
+* **Fix**: Ensure `use_rag` is checked in the UI. If checked but cards are still empty, the model might not have retrieved any document chunks with similarity scores high enough to count as relevant context.
+
+---
+
+## GitHub Branch Information
+* **Branch Name**: `phase-3`
+* **Next Branch**: `phase-4`
+
