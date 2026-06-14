@@ -145,7 +145,37 @@ Response:
 
 ---
 
+## Environment Variables
+
+The following environment variables are required to run the backend:
+* `GEMINI_API_KEY`: The API key to access Google Gemini models (get one at [Google AI Studio](https://aistudio.google.com/apikey)).
+* `GEMINI_MODEL`: (Optional) The model to use. Defaults to `gemini-1.5-flash`.
+
+---
+
+## Common Errors & Fixes
+
+### 1. CORS Blocked Request
+* **Error**: Frontend log shows `Access-Control-Allow-Origin` missing or blocked.
+* **Fix**: Ensure the backend is running and that CORS middleware is properly initialized in `backend/app/main.py`. Ensure you're launching the frontend on port 5173 and backend on port 8000.
+
+### 2. Invalid API Key / ResourceExhausted (Quota Limits)
+* **Error**: Chat responses result in `502 Bad Gateway` and console shows API key errors.
+* **Fix**: Check `backend/.env` for typos in `GEMINI_API_KEY`. If you hit rate limits, the API returns a ResourceExhausted status; try creating a new key or waiting a few minutes.
+
+### 3. Ports Already in Use
+* **Error**: `Uvicorn failed to bind to 127.0.0.1:8000` or Vite cannot start on `5173`.
+* **Fix**: Free up ports on your system by finding and stopping the processes using them (e.g., via Task Manager or `kill` commands).
+
+---
+
+## GitHub Branch Information
+* **Branch Name**: `main` (representing Phase 1)
+* **Next Branch**: `phase-2-local-rag`
+
+---
+
 ## Next phases (not included yet)
 
-Phase 2+ will layer on RAG, agents, MCP servers, A2A, Docker, Kubernetes,
-CI/CD, and Azure — each on top of this clean base.
+Phase 2+ will layer on RAG, agents, MCP servers, A2A, Docker, Kubernetes, CI/CD, and Azure — each on top of this clean base.
+
