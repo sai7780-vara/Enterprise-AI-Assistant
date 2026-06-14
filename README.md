@@ -163,3 +163,32 @@ In Phase 4, the routing and agent communication are written in pure, native Pyth
    npm run dev
    ```
 2. Open **http://localhost:5173** to run the app.
+
+---
+
+## Environment Variables
+
+The following environment variables are required to run the backend:
+* `GEMINI_API_KEY`: The API key to access Google Gemini models.
+* `GEMINI_MODEL`: The model used for generation (defaults to `gemini-2.5-flash`).
+* `GEMINI_EMBEDDING_MODEL`: The model used for generating embeddings (defaults to `gemini-embedding-001`).
+* `FRONTEND_ORIGIN`: The client address allowed by CORS (defaults to `http://localhost:5173`).
+
+---
+
+## Common Errors & Fixes
+
+### 1. `ResourceExhausted` Quota Failures
+* **Error**: Gemini API returns HTTP 429 status code.
+* **Fix**: The backend automatically rotates through backup model configurations on rate limit exhaustion. If all models are exhausted, wait a minute for the quota bucket to refill, or supply a paid tier API key.
+
+### 2. Classification Mismatch
+* **Error**: User messages are routed to the wrong sub-agent (e.g. asking for VPN resets goes to HR instead of IT).
+* **Fix**: The Supervisor relies on prompt descriptions inside `supervisor_agent.py`. Adjust the zero-shot router prompts to make descriptions of agent domains more distinct.
+
+---
+
+## GitHub Branch Information
+* **Branch Name**: `phase-4`
+* **Next Branch**: `phase-5-langgraph-a2a`
+
