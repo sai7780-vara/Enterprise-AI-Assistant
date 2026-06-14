@@ -4,6 +4,7 @@ from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.document import UploadResponse, DocumentListResponse
 from app.services.rag_service import rag_service
 from app.agents.supervisor_agent import supervisor_agent
+from app.graph import graph_workflow
 from app.services.document_service import document_service
 from app.services.vector_store import vector_store
 from app.core.logger import get_logger
@@ -24,6 +25,45 @@ def health() -> dict:
 def chat(payload: ChatRequest) -> ChatResponse:
     """Take a user message, route it through the Supervisor Agent to resolve it."""
     try:
+        # 1. First classify the query using supervisor classification helper
+        category = supervisor_agent.classify(payload.message)
+        
+        # 2. Check if we execute a multi-agent workflow (Phase 5)
+        if category in ("ONBOARDING", "TRAVEL", "CROSS_FUNCTIONAL"):
+            logger.info("Routing query to LangGraph workflow (category=%s)", category)
+            initial_state = {
+                "message": payload.message,
+                "use_rag": payload.use_rag,
+                "top_k": payload.top_k,
+                "execution_path": [],
+                "remaining_steps": [],
+                "next_agent": None,
+                "hr_response": None,
+                "finance_response": None,
+                "it_response": None,
+                "rag_response": None,
+                "sources": [],
+                "confidence": None,
+                "final_reply": None,
+                "workflow_type": None
+            }
+            # Execute LangGraph
+            result = graph_workflow.invoke(initial_state)
+            logger.info("LangGraph execution completed. Path: %s", result["execution_path"])
+            
+            return ChatResponse(
+                reply=result["final_reply"],
+                sources=[],
+                confidence=None,
+                agent_name="Supervisor Agent",
+                selected_agent="Supervisor Agent",
+                agent_type="supervisor",
+                execution_path=result["execution_path"],
+                workflow_type=result["workflow_type"]
+            )
+
+        # 3. Simple routing (Phase 4 Fallback)
+        logger.info("Routing query via Phase 4 single-agent fallback (category=%s)", category)
         reply, sources, confidence, agent_name = supervisor_agent.route_and_resolve(
             message=payload.message,
             use_rag=payload.use_rag,
@@ -38,7 +78,9 @@ def chat(payload: ChatRequest) -> ChatResponse:
             confidence=res_confidence, 
             agent_name=agent_name,
             selected_agent=agent_name,
-            agent_type=agent_type
+            agent_type=agent_type,
+            execution_path=[],
+            workflow_type=None
         )
     except Exception as exc:  # noqa: BLE001
         # Log the real error server-side, send a clean message to the client.

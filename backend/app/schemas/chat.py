@@ -39,5 +39,10 @@ class ChatResponse(BaseModel):
     selected_agent: Optional[str] = Field(default=None, description="The name of the agent that resolved this query (selected_agent)")
     # The lowercase shortcode for the agent type (Phase 4).
     agent_type: Optional[str] = Field(default=None, description="The type of the agent (e.g. hr, finance, it, rag)")
+    # The list of nodes executed in the LangGraph workflow (Phase 5).
+    execution_path: List[str] = Field(default_factory=list, description="The list of nodes executed in the workflow")
+    # The name of the workflow executed (Phase 5).
+    workflow_type: Optional[str] = Field(default=None, description="The type of the workflow (e.g. onboarding, travel, cross_functional)")
+
 
 

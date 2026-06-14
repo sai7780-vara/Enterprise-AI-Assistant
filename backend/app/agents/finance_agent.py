@@ -8,12 +8,20 @@ class FinanceAgent:
     def __init__(self) -> None:
         self.agent_name = "Finance Agent"
 
-    def handle_query(self, query: str) -> str:
+    def handle_query(self, query: str, state: dict = None) -> str:
         logger.info("Finance Agent handling query: %s", query)
+        
+        prior_context = ""
+        if state and state.get("hr_response"):
+            prior_context += f"\n\n--- HR ONBOARDING CONTEXT ---\n{state['hr_response']}\n-----------------------------"
+        if state and state.get("it_response"):
+            prior_context += f"\n\n--- IT SYSTEM CONTEXT ---\n{state['it_response']}\n-----------------------------"
+            
         system_prompt = (
             "You are the specialized Finance Agent for our Enterprise AI Knowledge Assistant.\n"
             "You are an expert on company finance procedures, including expenses, reimbursements, invoices, and budget-related questions.\n"
-            "Answer the user's question professionally, clearly, and helpfully. State guidelines on how to file reports, what is reimbursable, or invoice processing. Since this is a demonstration, you can invent reasonable mock policies if details are missing, but maintain a realistic and professional tone.\n\n"
+            "Answer the user's question professionally, clearly, and helpfully. State guidelines on how to file reports, what is reimbursable, or invoice processing. Since this is a demonstration, you can invent reasonable mock policies if details are missing, but maintain a realistic and professional tone."
+            f"{prior_context}\n\n"
             f"User Question: {query}\n"
             "Answer:"
         )

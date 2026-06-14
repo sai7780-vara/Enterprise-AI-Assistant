@@ -714,3 +714,55 @@ body {
   line-height: 1.45;
   white-space: pre-wrap;
 }
+
+/* --- Phase 5 LangGraph Workflow trace --- */
+.message-workflow-trace {
+  background: rgba(108, 140, 255, 0.04);
+  border: 1px solid rgba(108, 140, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  max-width: 100%;
+}
+
+.workflow-trace-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.workflow-type-value {
+  color: var(--accent);
+  text-transform: capitalize;
+}
+
+.workflow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.workflow-step-item {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.workflow-step-name {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #c4ccdf;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.workflow-step-arrow {
+  color: var(--muted);
+  opacity: 0.6;
+  margin: 0 4px;
+}

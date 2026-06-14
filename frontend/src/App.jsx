@@ -33,7 +33,9 @@ export default function App() {
           text: response.reply, 
           sources: response.sources,
           confidence: response.confidence,
-          agentName: response.selected_agent || response.agent_name
+          agentName: response.selected_agent || response.agent_name,
+          executionPath: response.execution_path,
+          workflowType: response.workflow_type
         }
       ]);
     } catch (err) {
@@ -66,7 +68,7 @@ export default function App() {
         <header className="app-header">
           <div className="header-titles">
             <h1>Enterprise AI Knowledge Assistant</h1>
-            <p className="subtitle">Phase 4 — Agent Architecture</p>
+            <p className="subtitle">Phase 5 — Multi-Agent Workflows</p>
           </div>
           <button
             className="sidebar-toggle-btn"
@@ -95,6 +97,8 @@ export default function App() {
               sources={m.sources} 
               confidence={m.confidence}
               agentName={m.agentName}
+              executionPath={m.executionPath}
+              workflowType={m.workflowType}
             />
           ))}
           {loading && <ChatMessage role="assistant" text="Thinking..." />}

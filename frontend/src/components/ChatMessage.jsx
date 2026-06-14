@@ -22,7 +22,7 @@ const getAgentEmoji = (name) => {
 
 // Presentational component: renders one message bubble.
 // Styling differs by role (user vs assistant).
-export default function ChatMessage({ role, text, sources, confidence, agentName }) {
+export default function ChatMessage({ role, text, sources, confidence, agentName, executionPath, workflowType }) {
   const [expandedSourceIdx, setExpandedSourceIdx] = useState(null);
 
   const toggleExpand = (idx) => {
@@ -45,6 +45,22 @@ export default function ChatMessage({ role, text, sources, confidence, agentName
             </div>
           )}
         </div>
+
+        {role === "assistant" && executionPath && executionPath.length > 0 && (
+          <div className="message-workflow-trace">
+            <div className="workflow-trace-title">
+              ⛓️ Workflow: <span className="workflow-type-value">{workflowType || "Multi-Agent"}</span>
+            </div>
+            <div className="workflow-steps">
+              {executionPath.map((step, idx) => (
+                <span key={idx} className="workflow-step-item">
+                  <span className="workflow-step-name">{step}</span>
+                  {idx < executionPath.length - 1 && <span className="workflow-step-arrow"> ➜ </span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="message-content">{text}</div>
         {role === "assistant" && sources && sources.length > 0 && (

@@ -8,7 +8,7 @@ class HRAgent:
     def __init__(self) -> None:
         self.agent_name = "HR Agent"
 
-    def handle_query(self, query: str) -> str:
+    def handle_query(self, query: str, state: dict = None) -> str:
         logger.info("HR Agent handling query: %s", query)
         system_prompt = (
             "You are the specialized HR Agent for our Enterprise AI Knowledge Assistant.\n"
