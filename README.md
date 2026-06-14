@@ -1,29 +1,39 @@
-# Enterprise AI Knowledge Assistant — Phase 1
+# Enterprise AI Knowledge Assistant — Phase 2 (Local RAG)
 
-A minimal full-stack chat app: **React frontend** talks to a **FastAPI backend**,
-which calls the **Google Gemini API** and returns the reply.
-
-This is **Phase 1 only**. No RAG, agents, MCP, Docker, Kubernetes, or Azure yet —
-those come in later phases. The goal here is a clean, beginner-friendly base.
+A full-stack RAG (Retrieval-Augmented Generation) knowledge assistant. Users can upload multi-page PDF, TXT, and Markdown files to ground Gemini's responses in a custom local knowledge base.
 
 ---
 
-## Project structure
+## What This Phase Does
+Phase 2 layers document processing and vector embedding retrieval on top of Phase 1:
+* **Local Document Ingestion:** Users upload PDF, TXT, or MD files via the UI.
+* **Semantic Chunking:** Text is automatically split into semantic chunks with overlapping boundaries.
+* **Vector Embeddings:** Chunks are translated into numerical representations using Gemini's `text-embedding-001`.
+* **FAISS Search:** An in-memory similarity search matching queries against unit-normalized vectors.
+* **Context Injected Generation:** Custom prompts feed matching text chunks directly to Gemini to generate factual responses.
+
+---
+
+## Project Structure
 
 ```
 enterprise-ai-assistant/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── routes.py          # HTTP endpoints: /api/health, /api/chat
+│   │   │   └── routes.py          # /api/chat, /api/documents (upload, list, delete)
 │   │   ├── core/
-│   │   │   ├── config.py          # Reads env vars into one Settings object
-│   │   │   └── logger.py          # Central logging setup
+│   │   │   ├── config.py          # Config loader
+│   │   │   └── logger.py          # Central logger
 │   │   ├── schemas/
-│   │   │   └── chat.py            # Request/response models (Pydantic)
+│   │   │   ├── chat.py            # Pydantic schemas for chat
+│   │   │   └── document.py        # Pydantic schemas for documents
 │   │   ├── services/
-│   │   │   └── gemini_service.py  # Talks to Gemini; isolated from web layer
-│   │   └── main.py               # Builds FastAPI app, CORS, mounts routes
+│   │   │   ├── document_service.py # Preprocessing, PDF parsing, chunking
+│   │   │   ├── gemini_service.py  # Standard model caller
+│   │   │   ├── rag_service.py     # Integrates semantic retrieval + grounding
+│   │   │   └── vector_store.py    # Local FAISS index & Pickle persistence
+│   │   └── main.py                # App entrypoint
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── .gitignore
@@ -31,30 +41,24 @@ enterprise-ai-assistant/
 └── frontend/
     ├── src/
     │   ├── components/
-    │   │   └── ChatMessage.jsx    # One message bubble (presentational)
-    │   ├── api.js                # All backend calls in one place
-    │   ├── App.jsx               # Chat page: state + input + render
-    │   ├── main.jsx              # React entry point
+    │   │   └── ChatMessage.jsx
+    │   ├── api.js                 # API wrappers for endpoints
+    │   ├── App.jsx                # UI state & document upload fields
+    │   ├── main.jsx
     │   └── styles.css
-    ├── index.html
-    ├── package.json
-    ├── vite.config.js
-    ├── .env.example
-    └── .gitignore
 ```
-
-### Why this layout (clean architecture)
-
-Each folder has one job, so you can change one part without breaking others:
-
-- **api/** — thin HTTP layer. Validates input, calls a service, returns output. No logic.
-- **core/** — cross-cutting setup: config and logging. Nothing else reads env vars directly.
-- **schemas/** — the exact shape of data crossing the API. FastAPI validates against these.
-- **services/** — business logic and external calls (Gemini). The web layer doesn't know *how* Gemini works, only that it can ask for a reply. In Phase 2+ you swap this file for RAG/agents without touching the endpoints.
 
 ---
 
-## Backend setup
+## Environment Variables
+
+Create `backend/.env` with the following variables:
+* `GEMINI_API_KEY`: API key from Google AI Studio.
+* `KNOWLEDGE_BASE_DIR`: Directory where `knowledge_store.pkl` will be serialized (defaults to `app/data`).
+
+---
+
+## Backend Setup
 
 ```bash
 cd backend
@@ -63,24 +67,18 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-# 2. Install dependencies
+# 2. Install dependencies (make sure faiss-cpu is installed)
 pip install -r requirements.txt
 
-# 3. Create your .env from the example, then add your real key
+# 3. Setup environment variables
 cp .env.example .env
-#   edit .env  ->  GEMINI_API_KEY=...   (get one at https://aistudio.google.com/apikey)
+# Edit .env and enter GEMINI_API_KEY
 
-# 4. Run the server
+# 4. Run the development server
 uvicorn app.main:app --reload
 ```
 
-Backend now runs at **http://localhost:8000**.
-Check it: open **http://localhost:8000/api/health** → `{"status":"ok"}`.
-Interactive API docs: **http://localhost:8000/docs**.
-
----
-
-## Frontend setup
+## Frontend Setup
 
 ```bash
 cd frontend
@@ -88,64 +86,24 @@ cd frontend
 # 1. Install dependencies
 npm install
 
-# 2. (optional) copy env example if you changed the backend port
-cp .env.example .env
-
-# 3. Run the dev server
+# 2. Start Vite dev server
 npm run dev
 ```
 
-Frontend runs at **http://localhost:5173**. Open it and chat.
+---
+
+## Common Errors & Fixes
+
+### 1. `ModuleNotFoundError: No module named 'faiss'`
+* **Cause**: The `faiss-cpu` dependency failed to install or is missing from requirements.
+* **Fix**: Run `pip install faiss-cpu` manually inside your activated virtual environment.
+
+### 2. PDF Parsing Failing
+* **Cause**: Document is empty, corrupt, or uses unsupported non-standard fonts/OCR.
+* **Fix**: Ensure the PDF contains parseable text (not just scans/images). If scanned, run OCR on it first.
 
 ---
 
-## How the frontend talks to the backend
-
-1. You type a message and click **Send** (or press Enter) in `App.jsx`.
-2. `App.jsx` calls `sendChatMessage(text)` in `src/api.js`.
-3. `api.js` does a `POST` to `http://localhost:8000/api/chat` with JSON body
-   `{ "message": "your text" }`.
-4. FastAPI receives it in `routes.py`, validated against the `ChatRequest` schema.
-5. The backend returns JSON `{ "reply": "..." }`, which React renders as a bubble.
-
-CORS is enabled in `main.py` so the browser (port 5173) is allowed to call the
-API (port 8000). Without CORS the browser would block the request.
-
----
-
-## How the Gemini API is called
-
-All Gemini logic lives in `backend/app/services/gemini_service.py`:
-
-1. On startup, `GeminiService` reads `GEMINI_API_KEY` from the environment
-   (loaded from `.env` by `config.py`) and configures the `google-generativeai` client.
-2. It creates a model handle for `GEMINI_MODEL` (default `gemini-1.5-flash`).
-3. On each request, `generate_reply(message)` calls `model.generate_content(message)`
-   and returns the response text.
-4. `routes.py` wraps that call in try/except: real errors are logged server-side,
-   and the client gets a clean `502` instead of a stack trace.
-
----
-
-## Endpoints
-
-| Method | Path          | Purpose                          |
-|--------|---------------|----------------------------------|
-| GET    | `/api/health` | Liveness check                   |
-| POST   | `/api/chat`   | Send a message, get Gemini reply |
-
-`POST /api/chat` request body:
-```json
-{ "message": "Hello!" }
-```
-Response:
-```json
-{ "reply": "Hi! How can I help?" }
-```
-
----
-
-## Next phases (not included yet)
-
-Phase 2+ will layer on RAG, agents, MCP servers, A2A, Docker, Kubernetes,
-CI/CD, and Azure — each on top of this clean base.
+## GitHub Branch Information
+* **Branch Name**: `phase-2-local-rag`
+* **Next Branch**: `phase-3`
