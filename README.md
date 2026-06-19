@@ -1,6 +1,6 @@
-# Enterprise AI Knowledge Assistant — Phase 6 (MCP + Tool Calling)
+# Enterprise AI Knowledge Assistant — Phase 7 (Docker Containerization)
 
-A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) knowledge assistant. Users can upload multi-page PDF, TXT, and Markdown files to ground Gemini's responses in a custom local knowledge base, communicate directly with specialized domain experts routed by a Supervisor Agent, or execute complex, multi-agent workflows orchestrated by LangGraph.
+A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) knowledge assistant. Users can upload multi-page PDF, TXT, and Markdown files to ground Gemini's responses in a custom local knowledge base, communicate directly with specialized domain experts routed by a Supervisor Agent, execute complex, multi-agent workflows orchestrated by LangGraph, and deploy the entire multi-container architecture using Docker and Docker Compose.
 
 ---
 
@@ -12,6 +12,7 @@ A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) k
 *   **Phase 4 (Agent Architecture):** Multi-agent routing via a Supervisor Agent to distribute queries to specialized domain agents (HR Agent, Finance Agent, IT Agent, and RAG Agent) with automatic model rotation on rate-limiting.
 *   **Phase 5 (LangGraph + A2A):** Stateful, multi-agent orchestration via LangGraph. Implements Agent-to-Agent (A2A) communication through a shared state dictionary. Executes sequential, multi-department plans (onboarding, travel, cross-functional setups) while retaining Phase 4 routing for simple queries.
 *   **Phase 6 (MCP + Tool Calling):** Standardized, decoupled integrations using Model Context Protocol (MCP) servers communicating over standard input/output (stdio) using JSON-RPC 2.0. Exposes SQLite databases (employees, tickets) and semantic vector indexes as tools with structured error handling.
+*   **Phase 7 (Docker Containerization):** Containerization of frontend (React/Nginx), backend (FastAPI), and three separate MCP servers (employee-db, ticket, document) with Docker Compose, bridge networking, and persistent volumes.
 
 ---
 
@@ -145,7 +146,84 @@ Phase 6 introduces the Model Context Protocol (MCP) to decouple domain agents fr
 
 ---
 
-## Development Setup
+## Phase 7 — Docker Architecture & Production Deployment
+
+Phase 7 introduces complete containerization of the project using Docker and Docker Compose. Each service runs in its own isolated container, communicating over a virtual bridge network and persisting databases and vector indexes using Docker volumes.
+
+### Docker Compose Services & Container Descriptions
+
+| Service Name | Container Name | Technology | Description |
+| :--- | :--- | :--- | :--- |
+| `frontend` | `ai-assistant-frontend` | React + Nginx | Serves static UI assets on host port `5173`. Proxies `/api` calls to the backend. |
+| `backend` | `ai-assistant-backend` | FastAPI (Python 3.11) | Runs the core agentic workflow. Connects to MCP servers via HTTP endpoints. |
+| `employee-db-mcp` | `mcp-employee-db` | SQLite (Python 3.11) | Serves employee records database tools over HTTP port `8001`. |
+| `ticket-mcp` | `mcp-ticket` | SQLite (Python 3.11) | Serves ticket management database tools over HTTP port `8002`. |
+| `document-mcp` | `mcp-document` | FAISS (Python 3.11) | Serves vector semantic search tools over HTTP port `8003`. |
+
+### Docker Volume Descriptions
+
+*   **`ai-assistant-employee-db` (`/data` in container):** Persists the SQLite database for employee details.
+*   **`ai-assistant-ticket-db` (`/data` in container):** Persists the SQLite database for IT support tickets.
+*   **`ai-assistant-faiss-data` (`/app/app/data` in container):** Shared between `backend` and `document-mcp`. Stores vector embeddings and document chunk metadata.
+
+### Network Architecture
+
+All services operate within the **`ai-assistant-network`** (bridge driver). Docker's internal DNS allows the backend container to resolve hosts dynamically:
+*   `http://employee-db-mcp:8001`
+*   `http://ticket-mcp:8002`
+*   `http://document-mcp:8003`
+
+### Docker Architecture Diagram
+
+```mermaid
+flowchart TD
+    user[Web Browser] -- port 5173 --> frontend[frontend Container: Nginx]
+    frontend -- proxy /api --> backend[backend Container: FastAPI]
+    
+    subgraph Internal Docker Network
+        backend -- HTTP POST:8001 --> mcp_emp[employee-db-mcp Container]
+        backend -- HTTP POST:8002 --> mcp_tck[ticket-mcp Container]
+        backend -- HTTP POST:8003 --> mcp_doc[document-mcp Container]
+    end
+
+    subgraph Persistent Storage Volumes
+        mcp_emp -- Volume --> vol_emp[(employee_db_volume)]
+        mcp_tck -- Volume --> vol_tck[(ticket_db_volume)]
+        mcp_doc -- Volume --> vol_faiss[(faiss_volume)]
+        backend -- Volume --> vol_faiss
+    end
+```
+
+---
+
+## How To Run with Docker Compose
+
+To boot the entire full-stack application instantly:
+
+1.  **Configure API Key:** Create a `.env` file in the **project root directory** (same folder as `docker-compose.yml`) containing your Google Gemini API key:
+    ```env
+    GEMINI_API_KEY=your_actual_gemini_api_key_here
+    ```
+
+2.  **Start Services:**
+    ```bash
+    docker compose up --build
+    ```
+
+3.  **Access Application:**
+    *   **React Frontend:** Open `http://localhost:5173`
+    *   **FastAPI API Swagger Docs:** Open `http://localhost:8000/docs`
+    *   **API Health endpoint:** Open `http://localhost:8000/api/health`
+
+4.  **Shutdown Services:**
+    ```bash
+    docker compose down -v
+    ```
+    *(The `-v` flag removes the networks but also the persistent volumes. Omit `-v` to retain databases across runs.)*
+
+---
+
+## Development Setup (Local / Non-Docker)
 
 ### Backend Setup
 1. Navigate to backend:
@@ -200,10 +278,8 @@ The following environment variables are required to run the backend:
 ## GitHub Branch Information
 * **Branch Name**: `phase-6-mcp-servers`
 
----
-
 ## Learning Documentation
 
-*   [Learning Guide](LEARNING_GUIDE.md) — A comprehensive guide explaining the Model Context Protocol (MCP), stdio JSON-RPC subprocess servers, tool wrapping, structured error handling, and 20 interview Q&As.
-*   [Architecture Guide](ARCHITECTURE.md) — Explains the Phase 6 structural design, execution paths, and component layout.
+*   [Learning Guide](PHASE_7_DOCKER_LEARNING_GUIDE.md) — A comprehensive guide explaining Docker, reasons for containerization, container concepts vs. VMs, auto-scaling limits (Kubernetes), and 20 interview Q&As.
+*   [Architecture Guide](PHASE_7_ARCHITECTURE.md) — Explains the Phase 7 Dockerfile designs, Docker Compose orchestration, internal networks, volumes, and service startup sequences.
 

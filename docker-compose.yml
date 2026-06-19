@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # 1. React Frontend Application (served via Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
+    container_name: ai-assistant-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - assistant-network
+    restart: unless-stopped
+
+  # 2. FastAPI Backend Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-assistant-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=gemini-1.5-flash
+      - GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - KNOWLEDGE_BASE_DIR=/app/app/data
+      - EMPLOYEE_DB_MCP_URL=http://employee-db-mcp:8001
+      - TICKET_MCP_URL=http://ticket-mcp:8002
+      - DOCUMENT_MCP_URL=http://document-mcp:8003
+    volumes:
+      - faiss_volume:/app/app/data
+    depends_on:
+      - employee-db-mcp
+      - ticket-mcp
+      - document-mcp
+    networks:
+      - assistant-network
+    restart: unless-stopped
+
+  # 3. Employee Database MCP Server (SQLite)
+  employee-db-mcp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mcp-employee-db
+    command: python app/mcp/employee_db_server.py
+    environment:
+      - PORT=8001
+      - SQLITE_DB_PATH=/data/employee.db
+    volumes:
+      - employee_db_volume:/data
+    networks:
+      - assistant-network
+    restart: unless-stopped
+
+  # 4. Ticket MCP Server (SQLite)
+  ticket-mcp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mcp-ticket
+    command: python app/mcp/ticket_server.py
+    environment:
+      - PORT=8002
+      - SQLITE_DB_PATH=/data/ticket.db
+    volumes:
+      - ticket_db_volume:/data
+    networks:
+      - assistant-network
+    restart: unless-stopped
+
+  # 5. Document Search MCP Server (FAISS Vector DB)
+  document-mcp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mcp-document
+    command: python app/mcp/document_server.py
+    environment:
+      - PORT=8003
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=gemini-1.5-flash
+      - GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+      - KNOWLEDGE_BASE_DIR=/app/app/data
+    volumes:
+      - faiss_volume:/app/app/data
+    networks:
+      - assistant-network
+    restart: unless-stopped
+
+volumes:
+  employee_db_volume:
+    name: ai-assistant-employee-db
+  ticket_db_volume:
+    name: ai-assistant-ticket-db
+  faiss_volume:
+    name: ai-assistant-faiss-data
+
+networks:
+  assistant-network:
+    name: ai-assistant-network
+    driver: bridge

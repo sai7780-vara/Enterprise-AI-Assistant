@@ -21,7 +21,7 @@ try:
 except ImportError:
     pass
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "employee.db")
+DB_PATH = os.getenv("SQLITE_DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "employee.db"))
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -175,27 +175,66 @@ def handle_request(req):
         "error": {"code": -32601, "message": f"Method '{method}' not found."}
     }
 
-def main():
-    init_db()
-    # Read from stdin line by line
-    while True:
-        line = sys.stdin.readline()
-        if not line:
-            break
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class MCPHTTPHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length)
         try:
-            req = json.loads(line.strip())
+            req = json.loads(post_data.decode('utf-8'))
             resp = handle_request(req)
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(resp).encode('utf-8'))
         except Exception as e:
-            # Send standard error if parsing fails
-            err_resp = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": f"Parse error: {e}"}
-            }
-            sys.stdout.write(json.dumps(err_resp) + "\n")
-            sys.stdout.flush()
+            self.send_response(400)
+            self.send_header('Content-Type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(str(e).encode('utf-8'))
+
+def run_http_server(port):
+    server = HTTPServer(('0.0.0.0', port), MCPHTTPHandler)
+    logging.info("Starting MCP HTTP server on port %d...", port)
+    server.serve_forever()
+
+def main():
+    # Ensure database directory exists if path is modified
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+        
+    init_db()
+    
+    port_env = os.environ.get("PORT")
+    if port_env:
+        try:
+            port = int(port_env)
+            run_http_server(port)
+        except Exception as e:
+            logging.error("Failed to run HTTP server on port %s: %s", port_env, e)
+            sys.exit(1)
+    else:
+        # Read from stdin line by line
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            try:
+                req = json.loads(line.strip())
+                resp = handle_request(req)
+                sys.stdout.write(json.dumps(resp) + "\n")
+                sys.stdout.flush()
+            except Exception as e:
+                # Send standard error if parsing fails
+                err_resp = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": f"Parse error: {e}"}
+                }
+                sys.stdout.write(json.dumps(err_resp) + "\n")
+                sys.stdout.flush()
 
 if __name__ == "__main__":
     main()

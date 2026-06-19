@@ -22,6 +22,11 @@ from app.services.vector_store import vector_store
 from app.core.config import settings
 
 def search_documents(query, top_k=4):
+    try:
+        vector_store.load()
+    except Exception as e:
+        logging.error("Failed to reload vector store: %s", e)
+        
     # Check if we have documents
     if len(vector_store.chunk_metadata_map) == 0:
         return {"chunks": [], "confidence": 0.0}
@@ -158,24 +163,57 @@ def handle_request(req):
         "error": {"code": -32601, "message": f"Method '{method}' not found."}
     }
 
-def main():
-    while True:
-        line = sys.stdin.readline()
-        if not line:
-            break
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class MCPHTTPHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length)
         try:
-            req = json.loads(line.strip())
+            req = json.loads(post_data.decode('utf-8'))
             resp = handle_request(req)
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(resp).encode('utf-8'))
         except Exception as e:
-            err_resp = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": f"Parse error: {e}"}
-            }
-            sys.stdout.write(json.dumps(err_resp) + "\n")
-            sys.stdout.flush()
+            self.send_response(400)
+            self.send_header('Content-Type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(str(e).encode('utf-8'))
+
+def run_http_server(port):
+    server = HTTPServer(('0.0.0.0', port), MCPHTTPHandler)
+    logging.info("Starting MCP HTTP server on port %d...", port)
+    server.serve_forever()
+
+def main():
+    port_env = os.environ.get("PORT")
+    if port_env:
+        try:
+            port = int(port_env)
+            run_http_server(port)
+        except Exception as e:
+            logging.error("Failed to run HTTP server on port %s: %s", port_env, e)
+            sys.exit(1)
+    else:
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            try:
+                req = json.loads(line.strip())
+                resp = handle_request(req)
+                sys.stdout.write(json.dumps(resp) + "\n")
+                sys.stdout.flush()
+            except Exception as e:
+                err_resp = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": f"Parse error: {e}"}
+                }
+                sys.stdout.write(json.dumps(err_resp) + "\n")
+                sys.stdout.flush()
 
 if __name__ == "__main__":
     main()
