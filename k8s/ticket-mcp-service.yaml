@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-mcp
+  namespace: default
+  labels:
+    app: ticket-mcp
+spec:
+  ports:
+    - port: 8002
+      targetPort: 8002
+  selector:
+    app: ticket-mcp

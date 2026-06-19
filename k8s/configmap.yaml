@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-assistant-config
+  namespace: default
+data:
+  GEMINI_MODEL: "gemini-1.5-flash"
+  GEMINI_EMBEDDING_MODEL: "gemini-embedding-001"
+  FRONTEND_ORIGIN: "http://localhost:5173"
+  KNOWLEDGE_BASE_DIR: "/app/app/data"
+  EMPLOYEE_DB_MCP_URL: "http://employee-db-mcp:8001"
+  TICKET_MCP_URL: "http://ticket-mcp:8002"
+  DOCUMENT_MCP_URL: "http://document-mcp:8003"

@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: employee-db-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee-db-mcp
+  namespace: default
+  labels:
+    app: employee-db-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: employee-db-mcp
+  template:
+    metadata:
+      labels:
+        app: employee-db-mcp
+    spec:
+      containers:
+        - name: employee-db-mcp
+          image: ai-assistant-backend:latest
+          imagePullPolicy: Never
+          command: ["python", "app/mcp/employee_db_server.py"]
+          ports:
+            - containerPort: 8001
+          env:
+            - name: PORT
+              value: "8001"
+            - name: SQLITE_DB_PATH
+              value: "/data/employee.db"
+          volumeMounts:
+            - name: employee-db-storage
+              mountPath: /data
+      volumes:
+        - name: employee-db-storage
+          persistentVolumeClaim:
+            claimName: employee-db-pvc

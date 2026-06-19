@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-mcp
+  namespace: default
+  labels:
+    app: document-mcp
+spec:
+  ports:
+    - port: 8003
+      targetPort: 8003
+  selector:
+    app: document-mcp

@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: faiss-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-mcp
+  namespace: default
+  labels:
+    app: document-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: document-mcp
+  template:
+    metadata:
+      labels:
+        app: document-mcp
+    spec:
+      containers:
+        - name: document-mcp
+          image: ai-assistant-backend:latest
+          imagePullPolicy: Never
+          command: ["python", "app/mcp/document_server.py"]
+          ports:
+            - containerPort: 8003
+          env:
+            - name: PORT
+              value: "8003"
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-assistant-secret
+                  key: GEMINI_API_KEY
+            - name: GEMINI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: GEMINI_MODEL
+            - name: GEMINI_EMBEDDING_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: GEMINI_EMBEDDING_MODEL
+            - name: KNOWLEDGE_BASE_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: KNOWLEDGE_BASE_DIR
+          volumeMounts:
+            - name: faiss-storage
+              mountPath: /app/app/data
+      volumes:
+        - name: faiss-storage
+          persistentVolumeClaim:
+            claimName: faiss-pvc

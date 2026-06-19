@@ -1,6 +1,6 @@
-# Enterprise AI Knowledge Assistant — Phase 7 (Docker Containerization)
+# Enterprise AI Knowledge Assistant — Phase 8 (Kubernetes Local Deployment)
 
-A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) knowledge assistant. Users can upload multi-page PDF, TXT, and Markdown files to ground Gemini's responses in a custom local knowledge base, communicate directly with specialized domain experts routed by a Supervisor Agent, execute complex, multi-agent workflows orchestrated by LangGraph, and deploy the entire multi-container architecture using Docker and Docker Compose.
+A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) knowledge assistant. Users can upload multi-page PDF, TXT, and Markdown files to ground Gemini's responses in a custom local knowledge base, communicate directly with specialized domain experts routed by a Supervisor Agent, execute complex, multi-agent workflows orchestrated by LangGraph, and deploy the entire multi-container architecture locally using Docker, Docker Compose, or Kubernetes via Minikube.
 
 ---
 
@@ -13,6 +13,7 @@ A production-style multi-agent full-stack Retrieval-Augmented Generation (RAG) k
 *   **Phase 5 (LangGraph + A2A):** Stateful, multi-agent orchestration via LangGraph. Implements Agent-to-Agent (A2A) communication through a shared state dictionary. Executes sequential, multi-department plans (onboarding, travel, cross-functional setups) while retaining Phase 4 routing for simple queries.
 *   **Phase 6 (MCP + Tool Calling):** Standardized, decoupled integrations using Model Context Protocol (MCP) servers communicating over standard input/output (stdio) using JSON-RPC 2.0. Exposes SQLite databases (employees, tickets) and semantic vector indexes as tools with structured error handling.
 *   **Phase 7 (Docker Containerization):** Containerization of frontend (React/Nginx), backend (FastAPI), and three separate MCP servers (employee-db, ticket, document) with Docker Compose, bridge networking, and persistent volumes.
+*   **Phase 8 (Kubernetes Local Deployment):** Local orchestration of all 5 containerized services on a local Kubernetes cluster using Minikube, managing scaling, ClusterIP/NodePort Services, ConfigMaps, Secrets, Ingress, and persistent claims.
 
 ---
 
@@ -144,82 +145,99 @@ Phase 6 introduces the Model Context Protocol (MCP) to decouple domain agents fr
     }
     ```
 
----
 
-## Phase 7 — Docker Architecture & Production Deployment
 
-Phase 7 introduces complete containerization of the project using Docker and Docker Compose. Each service runs in its own isolated container, communicating over a virtual bridge network and persisting databases and vector indexes using Docker volumes.
+## Phase 8 — Kubernetes Local Deployment Setup
 
-### Docker Compose Services & Container Descriptions
+Phase 8 enables running the entire application stack locally inside a Kubernetes cluster managed by **Minikube**. 
 
-| Service Name | Container Name | Technology | Description |
-| :--- | :--- | :--- | :--- |
-| `frontend` | `ai-assistant-frontend` | React + Nginx | Serves static UI assets on host port `5173`. Proxies `/api` calls to the backend. |
-| `backend` | `ai-assistant-backend` | FastAPI (Python 3.11) | Runs the core agentic workflow. Connects to MCP servers via HTTP endpoints. |
-| `employee-db-mcp` | `mcp-employee-db` | SQLite (Python 3.11) | Serves employee records database tools over HTTP port `8001`. |
-| `ticket-mcp` | `mcp-ticket` | SQLite (Python 3.11) | Serves ticket management database tools over HTTP port `8002`. |
-| `document-mcp` | `mcp-document` | FAISS (Python 3.11) | Serves vector semantic search tools over HTTP port `8003`. |
+### Configured Kubernetes Components
 
-### Docker Volume Descriptions
+1.  **Deployments:**
+    *   `frontend`: Serves React static build files via Nginx.
+    *   `backend`: Core FastAPI agent system, mounting the shared vector storage.
+    *   `employee-db-mcp`: Launches the SQLite employee database tool server.
+    *   `ticket-mcp`: Launches the SQLite IT support ticket tool server.
+    *   `document-mcp`: Launches the FAISS vector database search server.
+2.  **Services:**
+    *   `employee-db-mcp`, `ticket-mcp`, `document-mcp`: Internal `ClusterIP` services.
+    *   `backend`: Exposes backend on ClusterIP and port `8000` (external `NodePort` mapping to `30000`).
+    *   `frontend`: Exposes React app on ClusterIP and port `80` (external `NodePort` mapping to `30080`).
+3.  **ConfigMap & Secret:**
+    *   `ai-assistant-config`: Configures model options, directory paths, and service endpoints.
+    *   `ai-assistant-secret`: Injects base64 encoded `GEMINI_API_KEY` dynamically.
+4.  **Persistent Storage Claims:**
+    *   `employee-db-pvc` & `ticket-db-pvc`: For SQLite database persistence.
+    *   `faiss-pvc` (Shared): Mounts to both the `backend` and `document-mcp` containers to synchronise vector index uploads.
+5.  **Ingress:**
+    *   Maps host `ai-assistant.local` to route `/api` requests to backend and `/` to frontend.
 
-*   **`ai-assistant-employee-db` (`/data` in container):** Persists the SQLite database for employee details.
-*   **`ai-assistant-ticket-db` (`/data` in container):** Persists the SQLite database for IT support tickets.
-*   **`ai-assistant-faiss-data` (`/app/app/data` in container):** Shared between `backend` and `document-mcp`. Stores vector embeddings and document chunk metadata.
+### How To Run locally with Minikube
 
-### Network Architecture
+Execute the following commands sequentially to build and deploy your cluster:
 
-All services operate within the **`ai-assistant-network`** (bridge driver). Docker's internal DNS allows the backend container to resolve hosts dynamically:
-*   `http://employee-db-mcp:8001`
-*   `http://ticket-mcp:8002`
-*   `http://document-mcp:8003`
+1.  **Start Minikube:**
+    ```bash
+    minikube start
+    ```
 
-### Docker Architecture Diagram
+2.  **Point Shell to Minikube's Docker Daemon:**
+    This routes your local `docker` commands to build directly inside Minikube's local registry, avoiding external registry pushes:
+    *   *Windows PowerShell:*
+        ```powershell
+        & minikube -p minikube docker-env | Invoke-Expression
+        ```
+    *   *Linux/macOS Bash:*
+        ```bash
+        eval $(minikube docker-env)
+        ```
 
-```mermaid
-flowchart TD
-    user[Web Browser] -- port 5173 --> frontend[frontend Container: Nginx]
-    frontend -- proxy /api --> backend[backend Container: FastAPI]
+3.  **Build the Images:**
+    Build the local images using Minikube's Docker context:
+    ```bash
+    # Build Backend parent image
+    docker build -t ai-assistant-backend:latest ./backend
     
-    subgraph Internal Docker Network
-        backend -- HTTP POST:8001 --> mcp_emp[employee-db-mcp Container]
-        backend -- HTTP POST:8002 --> mcp_tck[ticket-mcp Container]
-        backend -- HTTP POST:8003 --> mcp_doc[document-mcp Container]
-    end
-
-    subgraph Persistent Storage Volumes
-        mcp_emp -- Volume --> vol_emp[(employee_db_volume)]
-        mcp_tck -- Volume --> vol_tck[(ticket_db_volume)]
-        mcp_doc -- Volume --> vol_faiss[(faiss_volume)]
-        backend -- Volume --> vol_faiss
-    end
-```
-
----
-
-## How To Run with Docker Compose
-
-To boot the entire full-stack application instantly:
-
-1.  **Configure API Key:** Create a `.env` file in the **project root directory** (same folder as `docker-compose.yml`) containing your Google Gemini API key:
-    ```env
-    GEMINI_API_KEY=your_actual_gemini_api_key_here
+    # Build Frontend image
+    docker build -t ai-assistant-frontend:latest ./frontend
     ```
 
-2.  **Start Services:**
+4.  **Configure API Secrets:**
+    *   Encode your Gemini API key in Base64:
+        ```bash
+        # Windows PowerShell:
+        [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("YOUR_API_KEY"))
+        # Linux/macOS:
+        echo -n "YOUR_API_KEY" | base64
+        ```
+    *   Open [k8s/secret.yaml](file:///c:/Users/rukka/OneDrive/Desktop/AI%20Tools/expiriment/Enterprise-AI-Assistant/k8s/secret.yaml), replace the `GEMINI_API_KEY` placeholder value with your base64 string, and save.
+
+5.  **Apply manifests to Cluster:**
     ```bash
-    docker compose up --build
+    kubectl apply -f k8s/
     ```
 
-3.  **Access Application:**
-    *   **React Frontend:** Open `http://localhost:5173`
-    *   **FastAPI API Swagger Docs:** Open `http://localhost:8000/docs`
-    *   **API Health endpoint:** Open `http://localhost:8000/api/health`
-
-4.  **Shutdown Services:**
+6.  **Verify Cluster Health:**
+    Check that all pods, services, and volume claims are successfully provisioned and active:
     ```bash
-    docker compose down -v
+    kubectl get pods
+    kubectl get svc
+    kubectl get pvc
     ```
-    *(The `-v` flag removes the networks but also the persistent volumes. Omit `-v` to retain databases across runs.)*
+    *All pods should transition to `Running` status.*
+
+7.  **Access the Application:**
+    Retrieve the URL for the frontend NodePort Service:
+    ```bash
+    minikube service frontend --url
+    ```
+    *(Open the returned address in your browser to run the React interface!)*
+
+8.  **Shutdown Local Cluster:**
+    ```bash
+    kubectl delete -f k8s/
+    minikube stop
+    ```
 
 ---
 
@@ -280,6 +298,6 @@ The following environment variables are required to run the backend:
 
 ## Learning Documentation
 
-*   [Learning Guide](PHASE_7_DOCKER_LEARNING_GUIDE.md) — A comprehensive guide explaining Docker, reasons for containerization, container concepts vs. VMs, auto-scaling limits (Kubernetes), and 20 interview Q&As.
-*   [Architecture Guide](PHASE_7_ARCHITECTURE.md) — Explains the Phase 7 Dockerfile designs, Docker Compose orchestration, internal networks, volumes, and service startup sequences.
+*   [Learning Guide](PHASE_8_KUBERNETES_LEARNING_GUIDE.md) — A comprehensive guide explaining Kubernetes, Pods, Deployments, Services, ConfigMaps, Secrets, Ingress, and containing 20 interview Q&As.
+*   [Architecture Guide](PHASE_8_ARCHITECTURE.md) — Explains the Phase 8 Kubernetes YAML designs, service communications, secret mapping, volumes, and request-to-agent lifecycles.
 

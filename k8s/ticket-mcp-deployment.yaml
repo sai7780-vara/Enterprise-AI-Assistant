@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ticket-db-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-mcp
+  namespace: default
+  labels:
+    app: ticket-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticket-mcp
+  template:
+    metadata:
+      labels:
+        app: ticket-mcp
+    spec:
+      containers:
+        - name: ticket-mcp
+          image: ai-assistant-backend:latest
+          imagePullPolicy: Never
+          command: ["python", "app/mcp/ticket_server.py"]
+          ports:
+            - containerPort: 8002
+          env:
+            - name: PORT
+              value: "8002"
+            - name: SQLITE_DB_PATH
+              value: "/data/ticket.db"
+          volumeMounts:
+            - name: ticket-db-storage
+              mountPath: /data
+      volumes:
+        - name: ticket-db-storage
+          persistentVolumeClaim:
+            claimName: ticket-db-pvc

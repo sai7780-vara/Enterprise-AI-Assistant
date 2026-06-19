@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: default
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: ai-assistant-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-assistant-secret
+                  key: GEMINI_API_KEY
+            - name: GEMINI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: GEMINI_MODEL
+            - name: GEMINI_EMBEDDING_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: GEMINI_EMBEDDING_MODEL
+            - name: FRONTEND_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: FRONTEND_ORIGIN
+            - name: KNOWLEDGE_BASE_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: KNOWLEDGE_BASE_DIR
+            - name: EMPLOYEE_DB_MCP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: EMPLOYEE_DB_MCP_URL
+            - name: TICKET_MCP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: TICKET_MCP_URL
+            - name: DOCUMENT_MCP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-assistant-config
+                  key: DOCUMENT_MCP_URL
+          volumeMounts:
+            - name: faiss-storage
+              mountPath: /app/app/data
+      volumes:
+        - name: faiss-storage
+          persistentVolumeClaim:
+            claimName: faiss-pvc
